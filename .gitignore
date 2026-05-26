@@ -1,0 +1,9 @@
+node_modules
+.env
+artifacts
+cache
+typechain-types
+ignition
+sourcify
+ANSRegistryFlat.sol
+standard-input.json

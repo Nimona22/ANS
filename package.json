@@ -1,0 +1,29 @@
+{
+  "name": "ans-protocol",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "@openzeppelin/hardhat-upgrades": "^1.28.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.1",
+    "hardhat": "^2.22.17",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts-upgradeable": "^4.9.6",
+    "dotenv": "^17.4.2",
+    "ethers": "^5.7.2"
+  }
+}
