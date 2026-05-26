@@ -5,6 +5,11 @@
       "address": "0xBBE91358c99CB1b78577d9559Ee657C6FE727193",
       "txHash": "0x393dbf98e0245ca09b047ac818c7ffa80482bb4c39e256a16b62f557675bd5ce",
       "kind": "uups"
+    },
+    {
+      "address": "0xd1C027318d606Ed213c605dEe169BcDB215767a9",
+      "txHash": "0xdd5e490ab3eae82c2a1d99d5c07112a855c57661428924ad7acf879cbe960880",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -158,6 +163,179 @@
               }
             ],
             "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "ee5d040b02fc970892e1d5396c299a8b56016a49b2ae6104adf5a86b7832e206": {
+      "address": "0x5654A79D5Ffde5efdbfb53566ef879187E73eFD8",
+      "txHash": "0xbeceef2e9d0eed25bac1cd1d4a0959d5bc8d4e793921093eadb5581da42f12b9",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\ERC1967\\ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:40"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "202",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "registry",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_contract(IANSRegistry)3228",
+            "contract": "ANSRegistrar",
+            "src": "contracts\\core\\ANSRegistrar.sol:33"
+          },
+          {
+            "label": "defaultResolver",
+            "offset": 0,
+            "slot": "252",
+            "type": "t_address",
+            "contract": "ANSRegistrar",
+            "src": "contracts\\core\\ANSRegistrar.sol:34"
+          },
+          {
+            "label": "treasury",
+            "offset": 0,
+            "slot": "253",
+            "type": "t_address",
+            "contract": "ANSRegistrar",
+            "src": "contracts\\core\\ANSRegistrar.sol:35"
+          },
+          {
+            "label": "_commitments",
+            "offset": 0,
+            "slot": "254",
+            "type": "t_mapping(t_bytes32,t_uint64)",
+            "contract": "ANSRegistrar",
+            "src": "contracts\\core\\ANSRegistrar.sol:37"
+          },
+          {
+            "label": "_expiryCache",
+            "offset": 0,
+            "slot": "255",
+            "type": "t_mapping(t_bytes32,t_uint64)",
+            "contract": "ANSRegistrar",
+            "src": "contracts\\core\\ANSRegistrar.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "256",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ANSRegistrar",
+            "src": "contracts\\core\\ANSRegistrar.sol:40"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IANSRegistry)3228": {
+            "label": "contract IANSRegistry",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_bytes32,t_uint64)": {
+            "label": "mapping(bytes32 => uint64)",
+            "numberOfBytes": "32"
           },
           "t_uint256": {
             "label": "uint256",
