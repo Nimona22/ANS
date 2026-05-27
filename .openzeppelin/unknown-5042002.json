@@ -10,6 +10,16 @@
       "address": "0xd1C027318d606Ed213c605dEe169BcDB215767a9",
       "txHash": "0xdd5e490ab3eae82c2a1d99d5c07112a855c57661428924ad7acf879cbe960880",
       "kind": "uups"
+    },
+    {
+      "address": "0x92496093581d1b4847aCee6D150bd143d169C767",
+      "txHash": "0x78de28184f6334cde3518a3efb8d9d86d41da3c407dc6be220645d894220844b",
+      "kind": "uups"
+    },
+    {
+      "address": "0x50d4bFA1b2630879012EC599F396a7869531445b",
+      "txHash": "0x101c174501cdb85b6a279eacee38227195b9f6b06391dd0d1afc422d0af02e4a",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -344,6 +354,215 @@
           "t_uint64": {
             "label": "uint64",
             "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "5e9d5c0315a10d6c1a85675db40fab60fc0e09a15676b8d4719664d6d19912d0": {
+      "address": "0xa720cCBA9C4E09996166BDdc6D9063cB9B7d6953",
+      "txHash": "0xf123ffd3ed2e5bfec123018f25753051a74c6badc0e9ed16bf8d2bb8529f0eb5",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:40"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\ERC1967\\ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "_addresses",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_mapping(t_bytes32,t_address)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:23"
+          },
+          {
+            "label": "_avatars",
+            "offset": 0,
+            "slot": "202",
+            "type": "t_mapping(t_bytes32,t_string_storage)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:24"
+          },
+          {
+            "label": "_bios",
+            "offset": 0,
+            "slot": "203",
+            "type": "t_mapping(t_bytes32,t_string_storage)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:25"
+          },
+          {
+            "label": "_websites",
+            "offset": 0,
+            "slot": "204",
+            "type": "t_mapping(t_bytes32,t_string_storage)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:26"
+          },
+          {
+            "label": "_twitters",
+            "offset": 0,
+            "slot": "205",
+            "type": "t_mapping(t_bytes32,t_string_storage)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:27"
+          },
+          {
+            "label": "_discords",
+            "offset": 0,
+            "slot": "206",
+            "type": "t_mapping(t_bytes32,t_string_storage)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:28"
+          },
+          {
+            "label": "_emails",
+            "offset": 0,
+            "slot": "207",
+            "type": "t_mapping(t_bytes32,t_string_storage)",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:29"
+          },
+          {
+            "label": "_textRecords",
+            "offset": 0,
+            "slot": "208",
+            "type": "t_mapping(t_bytes32,t_mapping(t_string_memory_ptr,t_string_storage))",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:30"
+          },
+          {
+            "label": "registry",
+            "offset": 0,
+            "slot": "209",
+            "type": "t_contract(IANSRegistry)2045",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:32"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "210",
+            "type": "t_array(t_uint256)48_storage",
+            "contract": "ANSResolver",
+            "src": "contracts\\core\\ANSResolver.sol:34"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)48_storage": {
+            "label": "uint256[48]",
+            "numberOfBytes": "1536"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IANSRegistry)2045": {
+            "label": "contract IANSRegistry",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_bytes32,t_address)": {
+            "label": "mapping(bytes32 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_mapping(t_string_memory_ptr,t_string_storage))": {
+            "label": "mapping(bytes32 => mapping(string => string))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_string_storage)": {
+            "label": "mapping(bytes32 => string)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_string_memory_ptr,t_string_storage)": {
+            "label": "mapping(string => string)",
+            "numberOfBytes": "32"
+          },
+          "t_string_memory_ptr": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
           },
           "t_uint8": {
             "label": "uint8",
