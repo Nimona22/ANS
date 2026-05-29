@@ -6,4 +6,11 @@ typechain-types
 ignition
 sourcify
 ANSRegistryFlat.sol
+ANSResolverStandardInput.json
 standard-input.json
+registrar-input.json
+reverse-input.json
+ReverseFlat.sol
+scripts/genJson*.js
+scripts/verify*.js
+scripts/checkVerify*.js
