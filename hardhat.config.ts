@@ -25,9 +25,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      arc: "empty",
-    },
+    apiKey: { arc: "empty" },
     customChains: [
       {
         network: "arc",

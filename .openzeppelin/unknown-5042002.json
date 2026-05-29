@@ -25,6 +25,11 @@
       "address": "0x7cF67bec770f4eC9A744b9D4a1233ef5C21a756c",
       "txHash": "0xfb86c77bdd215ed67685c7e784d64326b24d91dc56f473c4166d6994d8ac8e36",
       "kind": "uups"
+    },
+    {
+      "address": "0x8f85aB4c3Bd2324d0a210673baC86a5fFcbBc27C",
+      "txHash": "0x954cbf53b6d32bbf132dfa207b48261256c065ab27576c6d9fe32a98477a1f0c",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -687,6 +692,135 @@
             "numberOfBytes": "32"
           },
           "t_contract(IANSRegistry)1635": {
+            "label": "contract IANSRegistry",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_bytes32)": {
+            "label": "mapping(address => bytes32)",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "f26e99b0156d461f59f87c44a2571b382b690fc0c05d39da0d9f4bbf0a0467e6": {
+      "address": "0x699B1cDC6b5331D8293071C1f481f585819cA9a0",
+      "txHash": "0x97686986594dad6311b2e94856fac00f095788c4150b6a6cc94dd7f85c234089",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\ERC1967\\ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:40"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "registry",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_contract(IANSRegistry)4208",
+            "contract": "ANSReverseRegistry",
+            "src": "contracts\\core\\ANSReverseRegistry.sol:34"
+          },
+          {
+            "label": "_primaryNames",
+            "offset": 0,
+            "slot": "202",
+            "type": "t_mapping(t_address,t_bytes32)",
+            "contract": "ANSReverseRegistry",
+            "src": "contracts\\core\\ANSReverseRegistry.sol:37"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "203",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ANSReverseRegistry",
+            "src": "contracts\\core\\ANSReverseRegistry.sol:40"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IANSRegistry)4208": {
             "label": "contract IANSRegistry",
             "numberOfBytes": "20"
           },
