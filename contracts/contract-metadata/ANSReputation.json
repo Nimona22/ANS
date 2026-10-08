@@ -1,0 +1,277 @@
+{
+  "contractAddress": "0x8a80287eb12d7bc38e52ed2ef59b0fb3de49f8ad",
+  "network": "ARC-TESTNET",
+  "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
+  "contract_code_path": "/home/user/app/contracts/ANSReputation.sol",
+  "contract_compiled_code_path": "/home/user/app/contracts/out/ANSReputation.sol/ANSReputation.json",
+  "contract_network_and_links": {
+    "Arc Testnet": "https://explorer.testnet.arc.io/address/0x8a80287eb12d7bc38e52ed2ef59b0fb3de49f8ad"
+  },
+  "contract_deployments": [
+    {
+      "chain": "Arc Testnet",
+      "address": "0x8a80287eb12d7bc38e52ed2ef59b0fb3de49f8ad",
+      "explorerUrl": "https://explorer.testnet.arc.io/address/0x8a80287eb12d7bc38e52ed2ef59b0fb3de49f8ad",
+      "txHash": "0xf4620babcfb602153cd1867ec97fd5fddffe256534dae976084349a629bfb828",
+      "deployedAt": "2026-10-08T01:16:53.876Z"
+    }
+  ],
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "ansContract",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "flagDispute",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "getReputation",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "tuple",
+          "internalType": "struct ANSReputation.ReputationRecord",
+          "components": [
+            {
+              "name": "salesCompleted",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "purchasesCompleted",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "tipsGiftsGiven",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "memberSince",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "disputeFlags",
+              "type": "uint16",
+              "internalType": "uint16"
+            }
+          ]
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getTier",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "recordPurchase",
+      "inputs": [
+        {
+          "name": "buyer",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "recordSale",
+      "inputs": [
+        {
+          "name": "seller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "recordTipGift",
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "reputation",
+      "inputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "salesCompleted",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "purchasesCompleted",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "tipsGiftsGiven",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "memberSince",
+          "type": "uint64",
+          "internalType": "uint64"
+        },
+        {
+          "name": "disputeFlags",
+          "type": "uint16",
+          "internalType": "uint16"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setAnsContract",
+      "inputs": [
+        {
+          "name": "_ans",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setMemberSince",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "ts",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "error",
+      "name": "AnsContractAlreadySet",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "InvalidAddress",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "UnauthorizedAns",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnauthorizedOwner",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    }
+  ]
+}
