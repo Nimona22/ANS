@@ -3,7 +3,7 @@ import {
   Search, Send, Store, Wallet, User, Check, AlertCircle, ChevronDown, 
   ArrowRightLeft, Tag, X, Shield, History, ArrowUpRight, Info, 
   Activity, Zap, CreditCard, CheckCircle2, RefreshCw, Clock, ArrowRight as ArrowRightIcon, Gift,
-  Copy, LogOut
+  Copy, LogOut, Mail, Edit3, Star, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReadContract } from 'wagmi';
@@ -12,6 +12,22 @@ import { formatUnits, type Address } from 'viem';
 import { usePasskeyAuth, type AuthState } from './hooks/usePasskeyAuth';
 import { useANS, cleanName, fallbackPublicClient } from './hooks/useANS';
 import { ANS_ABI, ANS_ADDRESS, REPUTATION_ABI, REPUTATION_ADDRESS, USDC_ABI, USDC_ADDRESS } from './lib/abis';
+import {
+  NameActivityItem,
+  getRealisticNameActivities,
+  recordActivity,
+  formatRelativeTime,
+  calculateRegistrationPriceUSDC,
+  getUserPrimaryName,
+  setUserPrimaryName,
+  getRecentlyRegisteredNames,
+} from './lib/activity';
+import {
+  fetchActiveListings,
+  addTrackedListing,
+  removeTrackedListing,
+  type MarketplaceListing,
+} from './lib/marketplace';
 
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -48,6 +64,33 @@ const MOCK_REPUTATION: Record<string, { tier: string; txs: number; sales: number
   "pay.arc": { tier: "Elite", txs: 310, sales: 4, buys: 20, tips: 150, since: "Jan 2023", disputes: 0 },
 };
 
+export type UserProfile = {
+  address: string;
+  email?: string;
+  displayName?: string;
+  bio?: string; // max 160 chars
+  twitter?: string; // handle without @
+  website?: string;
+  avatar?: string; // emoji or initials fallback
+};
+
+export const loadProfile = (address: string): UserProfile => {
+  if (!address) return { address: '' };
+  try {
+    const raw = localStorage.getItem(`ans_profile_${address.toLowerCase()}`) || localStorage.getItem(`ans_profile_${address}`);
+    return raw ? JSON.parse(raw) : { address };
+  } catch {
+    return { address };
+  }
+};
+
+export const saveProfile = (profile: UserProfile) => {
+  if (!profile.address) return;
+  const json = JSON.stringify(profile);
+  localStorage.setItem(`ans_profile_${profile.address.toLowerCase()}`, json);
+  localStorage.setItem(`ans_profile_${profile.address}`, json);
+};
+
 const INITIAL_MOCK_NAMES = [
   { name: "alice.arc", owner: "0x71C...9A23", expiry: Date.now() + 180 * 24 * 60 * 60 * 1000, status: 'healthy', isPrimary: true },
   { name: "bob.arc", owner: "0x71C...9A23", expiry: Date.now() + 18 * 24 * 60 * 60 * 1000, status: 'expiring', isPrimary: false },
@@ -56,22 +99,27 @@ const INITIAL_MOCK_NAMES = [
   { name: "alex.arc", owner: "0x38d...f2ed", expiry: Date.now() + 120 * 24 * 60 * 60 * 1000, status: 'healthy', isPrimary: true },
 ];
 
-const INITIAL_MOCK_LISTINGS = [
-  { name: "pro.arc", seller: "0x123...abc", price: 500, expiry: Date.now() + 90 * 24 * 60 * 60 * 1000 },
-  { name: "defi.arc", seller: "0x456...def", price: 1200, expiry: Date.now() + 120 * 24 * 60 * 60 * 1000 },
-  { name: "pay.arc", seller: "0x789...ghi", price: 250, expiry: Date.now() + 45 * 24 * 60 * 60 * 1000 },
-  { name: "build.arc", seller: "0xabc...123", price: 25, expiry: Date.now() + 30 * 24 * 60 * 60 * 1000 },
-];
+const INITIAL_MOCK_LISTINGS: any[] = [];
 
 const TIER_NAMES = ['New', 'Trusted', 'Verified', 'Elite'] as const;
 
 const Button = ({ children, variant = 'primary', className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' }) => {
-  const baseStyle = "font-sans font-medium px-6 py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed";
+  const hasPx = /(?:^|\s)px-/.test(className);
+  const hasPy = /(?:^|\s)py-/.test(className);
+  const hasTextSize = /(?:^|\s)text-(xs|sm|base|lg|xl|2xl)\b/.test(className);
+
+  const defaultPx = hasPx ? "" : "px-6";
+  const defaultPy = hasPy ? "" : "py-2.5";
+  const defaultText = hasTextSize ? "" : "text-base";
+
+  const baseStyle = `font-sans font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A863A] focus-visible:ring-offset-2 active:scale-[0.98] ${defaultPx} ${defaultPy} ${defaultText}`;
+  
   const variants = {
-    primary: "bg-[#111111] text-white hover:bg-[#333333] shadow-sm",
-    secondary: "bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 shadow-sm",
-    ghost: "bg-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+    primary: "bg-[#111111] text-white hover:bg-[#333333] shadow-sm border border-transparent disabled:bg-gray-200 disabled:text-gray-500",
+    secondary: "bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 hover:border-gray-300 shadow-sm disabled:border-gray-100 disabled:text-gray-400",
+    ghost: "bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:text-gray-400"
   };
+
   return (
     <button className={`${baseStyle} ${variants[variant]} ${className}`} {...props}>
       {children}
@@ -362,6 +410,8 @@ const RegistrationProcess = ({
   const [giftTarget, setGiftTarget] = useState('');
   const [txStep, setTxStep] = useState('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getPrice = (len: number, dur: number) => {
     let base = len === 3 ? 5 : len === 4 ? 3 : len === 5 ? 1.5 : 0.5;
@@ -374,12 +424,15 @@ const RegistrationProcess = ({
   const price = getPrice(length, duration);
 
   const handleRegister = async () => {
+    if (isLoading) return; // prevent double-fire
     if (!auth.isConnected) {
       toast.info('Connecting with Passkey...');
       await auth.signIn();
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
     try {
       setTxStep('approving');
       let hash = '';
@@ -387,20 +440,39 @@ const RegistrationProcess = ({
         if (!giftTarget) {
           toast.error('Please enter a recipient address or .arc name');
           setTxStep('idle');
+          setIsLoading(false);
           return;
         }
-        setTxStep('registering');
-        hash = await ans.giftName(name, duration, giftTarget, price);
+        hash = await ans.giftName(name, duration, giftTarget, (step) => {
+          if (step === 'approving') setTxStep('approving');
+          else if (step === 'registering') setTxStep('registering');
+        });
       } else {
-        setTxStep('registering');
-        hash = await ans.register(name, duration, price);
+        hash = await ans.register(name, duration, (step) => {
+          if (step === 'approving') setTxStep('approving');
+          else if (step === 'registering') setTxStep('registering');
+        });
       }
       setTxHash(hash);
       setTxStep('success');
-      toast.success(`${name} registered successfully!`);
+      recordActivity({
+        name,
+        action: isGift ? 'Gifted Name' : 'Registered Name',
+        amount: calculateRegistrationPriceUSDC(name, duration),
+        from: isGift ? (auth.address || 'You') : 'Arc Protocol',
+        to: isGift ? giftTarget : (auth.address || ''),
+        timestamp: Date.now(),
+        txHash: hash,
+      });
+      toast.success(`Done! ${name} ${isGift ? 'gifted' : 'registered'} successfully!`);
     } catch (err: any) {
+      console.error(err);
+      const msg = err?.message || 'Transaction failed';
+      setError(msg);
+      toast.error(msg);
       setTxStep('idle');
-      toast.error(err?.message || 'Transaction failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -410,7 +482,7 @@ const RegistrationProcess = ({
         <div className="w-12 h-12 rounded-full bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center mx-auto mb-4">
           <Check size={24} strokeWidth={3} />
         </div>
-        <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">{name} Registered</h3>
+        <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">Done! {name} {isGift ? 'Gifted' : 'Registered'}</h3>
         <p className="text-gray-500 font-sans text-sm mb-6">
           {isGift ? `Successfully gifted to ${giftTarget}` : 'This identity is now secured in your wallet.'}
         </p>
@@ -420,7 +492,7 @@ const RegistrationProcess = ({
             className="font-mono text-xs"
             onClick={() => txHash && window.open(`https://explorer.testnet.arc.io/tx/${txHash}`, '_blank')}
           >
-            View Tx <ArrowUpRight size={14} className="ml-1"/>
+            View Tx <ArrowUpRight size={14}/>
           </Button>
           <Button variant="primary" onClick={() => setTxStep('idle')} className="text-sm">Manage Name</Button>
         </div>
@@ -489,16 +561,23 @@ const RegistrationProcess = ({
           </div>
         </div>
 
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-sans">
+            {error}
+          </div>
+        )}
+
         <div className="pt-4">
           <Button 
             variant="primary"
             className="w-full py-4 text-base" 
             onClick={handleRegister}
-            disabled={txStep !== 'idle' || (isGift && !giftTarget)}
+            disabled={isLoading || txStep !== 'idle' || (isGift && !giftTarget)}
           >
-            {txStep === 'idle' && (isGift ? 'Approve USDC & Gift' : 'Approve USDC & Register')}
+            {isLoading && txStep === 'idle' && 'Processing...'}
+            {txStep === 'idle' && !isLoading && (isGift ? 'Approve USDC & Gift' : 'Approve USDC & Register')}
             {txStep === 'approving' && 'Approving USDC...'}
-            {txStep === 'registering' && 'Confirming on Arc...'}
+            {txStep === 'registering' && (isGift ? 'Gifting name...' : 'Registering name...')}
           </Button>
           <p className="text-center text-xs text-gray-500 mt-4 font-sans flex items-center justify-center gap-1.5">
             <Shield size={14} /> Atomic on-chain transaction
@@ -716,84 +795,119 @@ const NamesAppView = ({
   navigateToProfile: (name: string) => void;
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
-}) => (
-  <div className="max-w-4xl mx-auto pt-16 pb-32 px-6">
-    <div className="text-center mb-12">
-      <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">Find your .arc name</h1>
-      <p className="text-gray-500 font-sans text-lg">Search for an available name or explore existing identities.</p>
-    </div>
-    <InteractiveSearch navigateToProfile={navigateToProfile} autoFocus auth={auth} ans={ans} />
-    
-    <div className="mt-16 pt-12 border-t border-gray-200">
-      <h3 className="text-xl font-serif font-bold text-gray-900 mb-6">Recently Registered</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {['alex.arc', 'build.arc', 'pay.arc', 'alpha.arc'].map(s => (
-          <Card key={s} hoverable className="text-center p-4" onClick={() => navigateToProfile(s)}>
-            <span className="font-sans font-bold text-gray-900">{s}</span>
-          </Card>
-        ))}
+}) => {
+  const [recentNames, setRecentNames] = useState<string[]>(() => getRecentlyRegisteredNames());
+
+  useEffect(() => {
+    let cancelled = false;
+    const updateRecent = async () => {
+      const candidates = getRecentlyRegisteredNames();
+      const verified: string[] = [];
+      for (const item of candidates) {
+        try {
+          const rec = await fallbackPublicClient.readContract({
+            address: ANS_ADDRESS,
+            abi: ANS_ABI,
+            functionName: 'getNameRecord',
+            args: [cleanName(item)],
+          });
+          if (rec && rec.owner !== '0x0000000000000000000000000000000000000000') {
+            verified.push(item.endsWith('.arc') ? item : `${item}.arc`);
+          }
+        } catch {
+          // ignore individual lookup
+        }
+      }
+      if (!cancelled && verified.length > 0) {
+        setRecentNames(verified);
+      }
+    };
+
+    updateRecent();
+
+    const onUpdate = () => {
+      updateRecent();
+    };
+
+    window.addEventListener('ans_recent_registered_updated', onUpdate);
+    window.addEventListener('ans_activity_updated', onUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('ans_recent_registered_updated', onUpdate);
+      window.removeEventListener('ans_activity_updated', onUpdate);
+    };
+  }, []);
+
+  return (
+    <div className="max-w-4xl mx-auto pt-16 pb-32 px-6">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">Find your .arc name</h1>
+        <p className="text-gray-500 font-sans text-lg">Search for an available name or explore existing identities.</p>
       </div>
+      <InteractiveSearch navigateToProfile={navigateToProfile} autoFocus auth={auth} ans={ans} />
+      
+      {recentNames.length > 0 && (
+        <div className="mt-16 pt-12 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-serif font-bold text-gray-900 flex items-center gap-2">
+              <Sparkles size={20} className="text-[#1A863A]" /> Recently Registered
+            </h3>
+            <span className="text-xs font-sans text-gray-400 font-medium">Verified on Arc Testnet</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {recentNames.map(s => (
+              <Card key={s} hoverable className="p-4 flex items-center justify-between group cursor-pointer" onClick={() => navigateToProfile(s)}>
+                <div>
+                  <span className="font-serif font-bold text-gray-900 block group-hover:text-[#1A863A] transition-colors">{s}</span>
+                  <span className="text-[10px] font-sans text-gray-400 uppercase tracking-wider font-semibold">Active Identity</span>
+                </div>
+                <ArrowRightIcon size={14} className="text-gray-400 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all" />
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const MarketplaceView = ({ 
   navigateToProfile, 
   auth, 
-  ans 
+  ans,
+  navigateTo,
 }: { 
-  navigateToProfile: (name: string) => void;
-  auth: AuthState;
+  navigateToProfile: (name: string) => void; 
+  auth: AuthState; 
   ans: ReturnType<typeof useANS>;
+  navigateTo: (view: string, data?: string | null) => void;
 }) => {
   const [filter, setFilter] = useState('all');
-  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
   const [txState, setTxState] = useState('idle');
-  const [listings, setListings] = useState<any[]>(INITIAL_MOCK_LISTINGS);
+  const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Poll / load contract listings for common candidates
-  useEffect(() => {
-    let cancelled = false;
-    async function loadContractListings() {
-      const candidates = ['pro', 'defi', 'pay', 'build', 'alex', 'vitalik', 'alpha'];
-      const activeList: any[] = [];
-
-      for (const cand of candidates) {
-        try {
-          const l = await fallbackPublicClient.readContract({
-            address: ANS_ADDRESS,
-            abi: ANS_ABI,
-            functionName: 'getListing',
-            args: [cand],
-          });
-          if (l && l.active) {
-            activeList.push({
-              name: `${cand}.arc`,
-              seller: l.seller,
-              price: Number(formatUnits(l.price, 6)),
-              expiry: Date.now() + 90 * 24 * 60 * 60 * 1000,
-            });
-          }
-        } catch {
-          // ignore individual lookup error
-        }
-      }
-
-      if (!cancelled && activeList.length > 0) {
-        // Merge on-chain with mock fallback
-        const merged = [...activeList];
-        for (const mock of INITIAL_MOCK_LISTINGS) {
-          if (!merged.some(m => m.name === mock.name)) {
-            merged.push(mock);
-          }
-        }
-        setListings(merged);
-      }
+  const loadListings = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const active = await fetchActiveListings(fallbackPublicClient);
+      setListings(active);
+    } catch (err) {
+      console.warn('Failed to load active marketplace listings:', err);
+    } finally {
+      setIsLoading(false);
     }
-
-    loadContractListings();
-    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    loadListings();
+    const handleUpdate = () => {
+      loadListings();
+    };
+    window.addEventListener('ans_marketplace_updated', handleUpdate);
+    return () => window.removeEventListener('ans_marketplace_updated', handleUpdate);
+  }, [loadListings]);
 
   const filtered = listings.filter(l => {
     const len = l.name.replace('.arc', '').length;
@@ -803,7 +917,7 @@ const MarketplaceView = ({
     return true;
   });
 
-  const handleBuy = async (listingItem: any) => {
+  const handleBuy = async (listingItem: MarketplaceListing) => {
     if (!auth.isConnected) {
       toast.info('Connecting with Passkey...');
       await auth.signIn();
@@ -812,12 +926,38 @@ const MarketplaceView = ({
 
     try {
       setTxState('approving');
-      const hash = await ans.buyName(listingItem.name, listingItem.price.toString());
+      const hash = await ans.buyName(listingItem.name, listingItem.price.toString(), (step) => {
+        if (step === 'approving') setTxState('approving');
+        else if (step === 'buying') setTxState('purchasing');
+      });
       setTxState('success');
-      toast.success(`Purchased ${listingItem.name} successfully! Tx: ${hash.slice(0, 10)}...`);
+      recordActivity({
+        name: listingItem.name,
+        action: 'Bought Name',
+        amount: `${listingItem.price} USDC`,
+        from: 'Marketplace',
+        to: auth.address || '',
+        timestamp: Date.now(),
+        txHash: hash,
+      });
+      removeTrackedListing(listingItem.name);
+      setListings(prev => prev.filter(l => cleanName(l.name) !== cleanName(listingItem.name)));
+      toast.success(`Done! Purchased ${listingItem.name} successfully! Tx: ${hash.slice(0, 10)}...`);
     } catch (err: any) {
       setTxState('idle');
       toast.error(err?.message || 'Purchase failed');
+    }
+  };
+
+  const handleCancelListing = async (name: string) => {
+    try {
+      toast.loading(`Cancelling listing for ${name}...`, { id: `cancel-${name}` });
+      await ans.cancelListing(name);
+      removeTrackedListing(name);
+      setListings(prev => prev.filter(l => cleanName(l.name) !== cleanName(name)));
+      toast.success(`${name} listing cancelled!`, { id: `cancel-${name}` });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to cancel listing', { id: `cancel-${name}` });
     }
   };
 
@@ -827,7 +967,7 @@ const MarketplaceView = ({
     return {
       price: p.toFixed(2),
       fee: fee.toFixed(2),
-      total: (p + fee).toFixed(2),
+      total: p.toFixed(2),
       sellerReceives: (p - fee).toFixed(2)
     };
   };
@@ -837,7 +977,7 @@ const MarketplaceView = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6 border-b border-gray-200 pb-8">
         <div>
           <h1 className="text-4xl font-serif font-bold text-gray-900 mb-3">Marketplace</h1>
-          <p className="text-gray-500 font-sans text-lg">Discover and collect premium identities.</p>
+          <p className="text-gray-500 font-sans text-lg">Discover and collect verified .arc identities.</p>
         </div>
         <div className="flex bg-gray-50 border border-gray-200 rounded-xl p-1">
           {['all', '3', '4', '5+'].map(f => (
@@ -852,65 +992,109 @@ const MarketplaceView = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filtered.map(listing => (
-          <Card key={listing.name} className="flex flex-col">
-            <div className="flex justify-between items-start mb-10">
-              <h3 className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#1A863A]" onClick={() => navigateToProfile(listing.name)}>{listing.name}</h3>
-              <ReputationBadge name={listing.name} showDetails={false} />
-            </div>
-            <div className="mb-8">
-              <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-2">Asking Price</p>
-              <p className="text-2xl font-mono text-gray-900 font-bold">{listing.price} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
-            </div>
-            
-            {selectedListing?.name === listing.name ? (
-              <div className="mt-auto border-t border-gray-100 pt-5 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-                {txState === 'success' ? (
-                  <div className="text-center py-6 text-[#1A863A] font-sans font-bold text-sm flex flex-col items-center justify-center gap-3">
-                    <CheckCircle2 size={24} strokeWidth={2.5} /> Purchase Complete
+      {isLoading ? (
+        <div className="text-center py-20 text-gray-400">
+          <RefreshCw size={28} className="animate-spin mx-auto mb-3 text-gray-300" />
+          <p className="font-sans text-sm">Checking on-chain active listings...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+          <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
+            <Store size={28} />
+          </div>
+          <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">No Active Marketplace Listings</h3>
+          <p className="text-gray-500 font-sans text-sm max-w-md mx-auto mb-8 leading-relaxed">
+            There are currently no .arc names listed for sale on the secondary market. Anyone with an owned identity can list their name directly through the My Names dashboard.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button variant="primary" onClick={() => navigateTo('mynames')} className="text-sm">
+              List from My Names
+            </Button>
+            <Button variant="secondary" onClick={() => navigateTo('names')} className="text-sm">
+              Register a Name
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filtered.map(listing => {
+            const isOwnListing = !!(auth.address && listing.seller.toLowerCase() === auth.address.toLowerCase());
+
+            return (
+              <Card key={listing.name} className="flex flex-col">
+                <div className="flex justify-between items-start mb-10">
+                  <h3 className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#1A863A]" onClick={() => navigateToProfile(listing.name)}>
+                    {listing.name}
+                  </h3>
+                  <ReputationBadge name={listing.name} showDetails={false} />
+                </div>
+                <div className="mb-8">
+                  <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-2">Asking Price</p>
+                  <p className="text-2xl font-mono text-gray-900 font-bold">{listing.price} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
+                </div>
+                
+                {isOwnListing ? (
+                  <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-sans font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                      Your Listing
+                    </span>
+                    <Button 
+                      variant="secondary" 
+                      className="text-xs py-1.5 px-3 text-red-600 hover:bg-red-50 hover:border-red-200"
+                      onClick={() => handleCancelListing(listing.name)}
+                    >
+                      Cancel Listing
+                    </Button>
+                  </div>
+                ) : selectedListing?.name === listing.name ? (
+                  <div className="mt-auto border-t border-gray-100 pt-5 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                    {txState === 'success' ? (
+                      <div className="text-center py-6 text-[#1A863A] font-sans font-bold text-sm flex flex-col items-center justify-center gap-3">
+                        <CheckCircle2 size={24} strokeWidth={2.5} /> Done! Purchase Complete
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-3 mb-6 text-xs font-mono text-gray-500">
+                          <div className="flex justify-between">
+                            <span>Item Price</span>
+                            <span className="text-gray-900">{calculateFees(listing.price).price} USDC</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Protocol Fee (2.5%)</span>
+                            <span className="text-gray-500 font-sans">{calculateFees(listing.price).fee} USDC (deducted from seller)</span>
+                          </div>
+                          <div className="flex justify-between text-gray-900 pt-3 border-t border-gray-200 text-sm font-bold">
+                            <span>Total You Pay</span>
+                            <span className="text-[#1A863A] font-bold">{calculateFees(listing.price).total} USDC</span>
+                          </div>
+                          <div className="text-[10px] text-gray-500 font-sans mt-3 flex items-start gap-1.5 bg-white p-2.5 rounded border border-gray-200">
+                            <Info size={12} className="shrink-0 mt-0.5 text-[#1A863A]" />
+                            <span>Seller receives {calculateFees(listing.price).sellerReceives} USDC. Escrow guarantees atomic transfer.</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="secondary" className="px-3" onClick={() => { setSelectedListing(null); setTxState('idle'); }}>
+                            <X size={16} />
+                          </Button>
+                          <Button variant="primary" className="flex-1 text-sm" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
+                            {txState === 'idle' ? 'Confirm Buy' : txState === 'approving' ? 'Approving USDC...' : 'Purchasing name...'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
-                  <>
-                    <div className="space-y-3 mb-6 text-xs font-mono text-gray-500">
-                      <div className="flex justify-between">
-                        <span>Item Price</span>
-                        <span className="text-gray-900">{calculateFees(listing.price).price} USDC</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Protocol Fee (2.5%)</span>
-                        <span className="text-gray-900">{calculateFees(listing.price).fee} USDC</span>
-                      </div>
-                      <div className="flex justify-between text-gray-900 pt-3 border-t border-gray-200 text-sm font-bold">
-                        <span>Total You Pay</span>
-                        <span>{calculateFees(listing.price).total} USDC</span>
-                      </div>
-                      <div className="text-[10px] text-gray-500 font-sans mt-3 flex items-start gap-1.5 bg-white p-2.5 rounded border border-gray-200">
-                        <Info size={12} className="shrink-0 mt-0.5 text-[#1A863A]" />
-                        <span>Seller receives {calculateFees(listing.price).sellerReceives} USDC. Escrow guarantees atomic transfer.</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="secondary" className="px-3" onClick={() => {setSelectedListing(null); setTxState('idle');}}>
-                        <X size={16} />
-                      </Button>
-                      <Button variant="primary" className="flex-1 text-sm" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
-                        {txState === 'idle' ? 'Confirm Buy' : txState === 'approving' ? 'Approving...' : 'Purchasing...'}
-                      </Button>
-                    </div>
-                  </>
+                  <div className="mt-auto pt-5 border-t border-gray-100">
+                    <Button variant="secondary" className="w-full text-sm py-2.5" onClick={() => setSelectedListing(listing)}>
+                      Buy Name
+                    </Button>
+                  </div>
                 )}
-              </div>
-            ) : (
-              <div className="mt-auto pt-5 border-t border-gray-100">
-                <Button variant="secondary" className="w-full text-sm py-2.5" onClick={() => setSelectedListing(listing)}>
-                  Buy Name
-                </Button>
-              </div>
-            )}
-          </Card>
-        ))}
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -921,26 +1105,15 @@ const MyNamesView = ({
   auth,
   ans,
   balance,
+  navigateTo,
 }: { 
   isConnected: boolean; 
   connectWallet: () => void;
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
   balance?: string;
+  navigateTo: (view: string) => void;
 }) => {
-  if (!isConnected || !auth.address) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-center px-6">
-        <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-8 text-gray-400 shadow-sm">
-          <Wallet size={32} strokeWidth={1.5} />
-        </div>
-        <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Sign In Required</h2>
-        <p className="text-gray-500 font-sans text-lg max-w-md mx-auto mb-10 leading-relaxed">Connect your wallet to manage your .arc identities, renew registrations, or list names for sale.</p>
-        <Button variant="primary" onClick={connectWallet} className="px-8 py-3.5 text-base">Connect Wallet</Button>
-      </div>
-    );
-  }
-
   const { data: rawOwnedNames, refetch: refetchOwned } = useReadContract({
     address: ANS_ADDRESS,
     abi: ANS_ABI,
@@ -987,12 +1160,20 @@ const MyNamesView = ({
             const daysLeft = (expiryMs - now) / (1000 * 60 * 60 * 24);
             const status = daysLeft < 0 ? 'expired' : daysLeft <= 30 ? 'expiring' : 'healthy';
 
+            const localPrimary = getUserPrimaryName(auth.address);
+            const isPrimary = localPrimary
+              ? cleanName(localPrimary) === clean
+              : primaryName
+                ? cleanName(primaryName) === clean
+                : owned.length === 1;
+
             return {
               name: `${clean}.arc`,
               owner: rec.owner,
               expiry: expiryMs,
               status,
-              isPrimary: primaryName ? cleanName(primaryName) === clean : false,
+              listed: !!rec.listed,
+              isPrimary,
             };
           } catch {
             return {
@@ -1000,6 +1181,7 @@ const MyNamesView = ({
               owner: auth.address,
               expiry: Date.now() + 180 * 24 * 60 * 60 * 1000,
               status: 'healthy',
+              listed: false,
               isPrimary: false,
             };
           }
@@ -1010,8 +1192,29 @@ const MyNamesView = ({
     }
 
     loadDetails();
-    return () => { active = false; };
+
+    const handlePrimaryChanged = () => {
+      loadDetails();
+    };
+    window.addEventListener('ans_primary_changed', handlePrimaryChanged);
+    return () => { 
+      active = false;
+      window.removeEventListener('ans_primary_changed', handlePrimaryChanged);
+    };
   }, [rawOwnedNames, primaryName, auth.address]);
+
+  if (!isConnected || !auth.address) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 text-center px-6">
+        <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-8 text-gray-400 shadow-sm">
+          <Wallet size={32} strokeWidth={1.5} />
+        </div>
+        <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Sign In Required</h2>
+        <p className="text-gray-500 font-sans text-lg max-w-md mx-auto mb-10 leading-relaxed">Connect your wallet to manage your .arc identities, renew registrations, or list names for sale.</p>
+        <Button variant="primary" onClick={connectWallet} className="px-8 py-3.5 text-base">Connect Wallet</Button>
+      </div>
+    );
+  }
 
   const usedCount = namesList.length;
 
@@ -1021,14 +1224,37 @@ const MyNamesView = ({
     return <span className="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-full text-[10px] font-sans font-bold uppercase tracking-wider">Expired</span>;
   };
 
+  const handleSetPrimary = (name: string) => {
+    if (!auth.address) return;
+    setUserPrimaryName(auth.address, name);
+    setNamesList(prev => prev.map(item => ({
+      ...item,
+      isPrimary: cleanName(item.name) === cleanName(name),
+    })));
+    toast.success(`${name} is now your main .arc identity!`);
+  };
+
   const handleRenew = async (name: string) => {
     try {
-      toast.info(`Renewing ${name}...`);
-      await ans.renew(name, 12, '1.5');
-      toast.success(`${name} renewed!`);
+      toast.loading('Approving USDC...', { id: `renew-${name}` });
+      await ans.renew(name, 12, (step) => {
+        if (step === 'approving') {
+          toast.loading('Approving USDC...', { id: `renew-${name}` });
+        } else if (step === 'renewing') {
+          toast.loading('Renewing name...', { id: `renew-${name}` });
+        }
+      });
+      recordActivity({
+        name,
+        action: 'Renewed Name',
+        amount: calculateRegistrationPriceUSDC(name, 12),
+        from: auth.address || 'Owner',
+        timestamp: Date.now(),
+      });
+      toast.success(`Done! ${name} renewed!`, { id: `renew-${name}` });
       refetchOwned();
     } catch (e: any) {
-      toast.error(e?.message || 'Renew failed');
+      toast.error(e?.message || 'Renew failed', { id: `renew-${name}` });
     }
   };
 
@@ -1038,6 +1264,14 @@ const MyNamesView = ({
     try {
       toast.info(`Transferring ${name}...`);
       await ans.transferName(name, to);
+      recordActivity({
+        name,
+        action: 'Transferred Name',
+        amount: '-',
+        from: auth.address || 'Previous Owner',
+        to,
+        timestamp: Date.now(),
+      });
       toast.success(`${name} transferred to ${to}!`);
       refetchOwned();
     } catch (e: any) {
@@ -1051,10 +1285,30 @@ const MyNamesView = ({
     try {
       toast.info(`Listing ${name} for ${priceStr} USDC...`);
       await ans.listForSale(name, priceStr);
+      addTrackedListing(name);
+      recordActivity({
+        name,
+        action: 'Listed for Sale',
+        amount: `${priceStr} USDC`,
+        from: auth.address || 'Seller',
+        timestamp: Date.now(),
+      });
       toast.success(`${name} listed for sale!`);
       refetchOwned();
     } catch (e: any) {
       toast.error(e?.message || 'Listing failed');
+    }
+  };
+
+  const handleCancelListing = async (name: string) => {
+    try {
+      toast.loading(`Cancelling listing for ${name}...`, { id: `cancel-${name}` });
+      await ans.cancelListing(name);
+      removeTrackedListing(name);
+      toast.success(`${name} removed from marketplace!`, { id: `cancel-${name}` });
+      refetchOwned();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to cancel listing', { id: `cancel-${name}` });
     }
   };
 
@@ -1090,16 +1344,25 @@ const MyNamesView = ({
               <p className="font-mono text-xs sm:text-sm font-semibold text-gray-900 break-all">{auth.address}</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(auth.address!);
-              toast.success('Address copied to clipboard!');
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl font-sans text-xs font-semibold transition-all shadow-sm active:scale-95 shrink-0"
-          >
-            <Copy size={13} className="text-gray-500" />
-            <span>Copy Address</span>
-          </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(auth.address!);
+                toast.success('Address copied to clipboard!');
+              }}
+              className="flex-1 sm:flex-none flex justify-center items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl font-sans text-xs font-semibold transition-all shadow-sm active:scale-95 shrink-0"
+            >
+              <Copy size={13} className="text-gray-500" />
+              <span>Copy Address</span>
+            </button>
+            <Button
+              variant="primary"
+              onClick={() => navigateTo('send')}
+              className="flex-1 sm:flex-none py-2.5 px-5 text-sm font-semibold shadow-sm"
+            >
+              <Send size={14}/> Send Payment
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1114,7 +1377,16 @@ const MyNamesView = ({
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2">
                     {nameItem.name}
-                    {nameItem.isPrimary && <span className="text-[#0052FF] text-[9px] font-sans font-bold px-2 py-0.5 border border-[#0052FF]/20 bg-[#0052FF]/10 rounded-full uppercase tracking-wider">Primary</span>}
+                    {nameItem.isPrimary && (
+                      <span className="text-[#0052FF] text-[9px] font-sans font-bold px-2 py-0.5 border border-[#0052FF]/20 bg-[#0052FF]/10 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <Star size={10} className="fill-[#0052FF]" /> Main
+                      </span>
+                    )}
+                    {nameItem.listed && (
+                      <span className="text-amber-700 text-[9px] font-sans font-bold px-2 py-0.5 border border-amber-200 bg-amber-50 rounded-full uppercase tracking-wider">
+                        Listed
+                      </span>
+                    )}
                   </h3>
                   <StatusBadge status={nameItem.status} />
                 </div>
@@ -1140,22 +1412,51 @@ const MyNamesView = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0 pt-5 sm:pt-0 border-t border-gray-100 sm:border-0">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto mt-2 sm:mt-0 pt-5 sm:pt-0 border-t border-gray-100 sm:border-0">
+              {!nameItem.isPrimary && (
+                <button
+                  onClick={() => handleSetPrimary(nameItem.name)}
+                  className="px-3 py-2 text-xs font-sans font-semibold text-gray-600 hover:text-[#0052FF] border border-gray-200 hover:border-blue-200 rounded-xl bg-white hover:bg-blue-50/50 transition-colors flex items-center gap-1.5 shadow-sm"
+                  title="Set as your primary main identity across Arc"
+                >
+                  <Star size={12} className="text-gray-400" /> Set as Main
+                </button>
+              )}
+
               {(nameItem.status === 'expiring' || nameItem.status === 'expired') && (
-                <Button variant="primary" className="flex-1 sm:flex-none py-2.5 text-sm" onClick={() => handleRenew(nameItem.name)}>
+                <Button variant="primary" className="flex-1 sm:flex-none py-2 text-xs" onClick={() => handleRenew(nameItem.name)}>
                   Renew
                 </Button>
               )}
               
               <div className="relative group flex-1 sm:flex-none">
-                <Button variant="secondary" className="w-full sm:w-auto px-4 py-2.5 text-sm flex items-center justify-center gap-2">
+                <Button variant="secondary" className="w-full sm:w-auto px-4 py-2 text-xs flex items-center justify-center gap-2">
                   Manage <ChevronDown size={14} />
                 </Button>
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 py-1.5 overflow-hidden">
-                  {!nameItem.isPrimary && <button className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium"><User size={16} className="text-gray-400"/> Set as Primary</button>}
-                  <button onClick={() => handleRenew(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium"><RefreshCw size={16} className="text-gray-400"/> Renew Name</button>
-                  <button onClick={() => handleTransfer(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium"><ArrowRightLeft size={16} className="text-gray-400"/> Transfer Name</button>
-                  <button onClick={() => handleListForSale(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium"><Tag size={16} className="text-gray-400"/> List for Sale</button>
+                  {!nameItem.isPrimary && (
+                    <button onClick={() => handleSetPrimary(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                      <Star size={16} className="text-[#0052FF]" /> Set as Main Identity
+                    </button>
+                  )}
+                  <button onClick={() => navigateTo('send', nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                    <Send size={16} className="text-gray-400"/> Send Payment
+                  </button>
+                  <button onClick={() => handleRenew(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                    <RefreshCw size={16} className="text-gray-400"/> Renew Name
+                  </button>
+                  <button onClick={() => handleTransfer(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                    <ArrowRightLeft size={16} className="text-gray-400"/> Transfer Name
+                  </button>
+                  {nameItem.listed ? (
+                    <button onClick={() => handleCancelListing(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-red-600 hover:bg-red-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                      <Tag size={16} className="text-red-500"/> Cancel Listing
+                    </button>
+                  ) : (
+                    <button onClick={() => handleListForSale(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                      <Tag size={16} className="text-gray-400"/> List for Sale
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1165,7 +1466,7 @@ const MyNamesView = ({
         {namesList.length === 0 && (
           <Card className="text-center py-12 text-gray-500">
             <p className="text-base font-sans font-medium mb-4">You have not registered any .arc names yet.</p>
-            <Button variant="primary" onClick={connectWallet} className="mx-auto text-sm">
+            <Button variant="primary" onClick={() => navigateTo('names')} className="mx-auto text-sm">
               Register a Name
             </Button>
           </Card>
@@ -1181,19 +1482,27 @@ const SendView = ({
   auth,
   ans,
   balance,
+  defaultRecipient = '',
 }: { 
   isConnected: boolean; 
   connectWallet: () => void;
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
   balance?: string;
+  defaultRecipient?: string;
 }) => {
-  const [recipient, setRecipient] = useState('');
+  const [recipient, setRecipient] = useState(defaultRecipient || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [step, setStep] = useState('edit'); 
   const [txStatus, setTxStatus] = useState('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultRecipient) {
+      setRecipient(defaultRecipient);
+    }
+  }, [defaultRecipient]);
 
   const cleanRecip = cleanName(recipient);
   const isArcName = recipient.trim().toLowerCase().endsWith('.arc');
@@ -1230,12 +1539,25 @@ const SendView = ({
 
   const handleConfirm = async () => {
     try {
-      setTxStatus('signing');
-      const hash = await ans.sendTip(recipient, amount, note);
+      setTxStatus('approving');
+      const hash = await ans.sendTip(recipient, amount, note, (step) => {
+        if (step === 'approving') setTxStatus('approving');
+        else if (step === 'tipping') setTxStatus('confirming');
+      });
+      recordActivity({
+        name: recipient,
+        action: 'Received Tip',
+        amount: `${amount} USDC`,
+        from: auth.address ? (cleanName(auth.address).slice(0, 8) + '...') : 'Anonymous',
+        to: recipient,
+        timestamp: Date.now(),
+        txHash: hash,
+        note: note || undefined,
+      });
       setTxHash(hash);
-      setTxStatus('confirming');
+      setTxStatus('idle');
       setStep('success');
-      toast.success('Payment sent successfully!');
+      toast.success('Done! Payment sent successfully!');
     } catch (err: any) {
       setTxStatus('idle');
       toast.error(err?.message || 'Payment failed');
@@ -1249,7 +1571,7 @@ const SendView = ({
           <div className="w-16 h-16 rounded-full bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center mx-auto mb-6">
             <Check size={32} strokeWidth={2.5} />
           </div>
-          <h3 className="text-3xl font-serif font-bold text-gray-900 mb-2">Payment Sent</h3>
+          <h3 className="text-3xl font-serif font-bold text-gray-900 mb-2">Done! Payment Sent</h3>
           <p className="text-gray-500 font-sans mb-10 text-base">
             Successfully sent <span className="font-mono text-gray-900 font-bold">{amount} USDC</span> to {recipient}.
           </p>
@@ -1260,7 +1582,7 @@ const SendView = ({
                 className="w-full py-3 text-xs font-mono"
                 onClick={() => window.open(`https://explorer.testnet.arc.io/tx/${txHash}`, '_blank')}
               >
-                View on Arcscan <ArrowUpRight size={14} className="ml-1"/>
+                View on Arcscan <ArrowUpRight size={14}/>
               </Button>
             )}
             <Button variant="primary" onClick={() => { setStep('edit'); setRecipient(''); setAmount(''); setNote(''); setTxStatus('idle'); }} className="w-full py-3.5">
@@ -1301,6 +1623,16 @@ const SendView = ({
                   </div>
                 )}
               </div>
+              {resolvedAddress && resolvedAddress.startsWith('0x') && resolvedAddress.length === 42 && (() => {
+                const resolvedProfile = loadProfile(resolvedAddress);
+                if (!resolvedProfile.displayName) return null;
+                return (
+                  <div className="mt-2.5 flex items-center gap-2 text-xs text-gray-700 bg-white border border-gray-200 px-3 py-1.5 rounded-xl w-fit shadow-sm">
+                    <span className="font-sans font-bold text-gray-900">{resolvedProfile.displayName}</span>
+                    <ReputationBadge name={resolvedAddress} showDetails={false} />
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
@@ -1390,8 +1722,8 @@ const SendView = ({
               </Button>
               <Button variant="primary" className="flex-1 py-4 text-base" onClick={handleConfirm} disabled={txStatus !== 'idle'}>
                 {txStatus === 'idle' && 'Confirm & Sign'}
-                {txStatus === 'signing' && 'Awaiting Signature...'}
-                {txStatus === 'confirming' && 'Confirming on Arc...'}
+                {txStatus === 'approving' && 'Approving USDC...'}
+                {txStatus === 'confirming' && 'Sending payment...'}
               </Button>
             </div>
           </div>
@@ -1406,7 +1738,7 @@ const NameProfileView = ({
   navigateTo 
 }: { 
   name: string; 
-  navigateTo: (view: string) => void;
+  navigateTo: (view: string, data?: string | null) => void;
 }) => {
   const clean = cleanName(name);
 
@@ -1434,6 +1766,45 @@ const NameProfileView = ({
 
   const ownerStr = (listing && listing.active ? listing.seller : hasOnchainOwner ? record.owner : mockListing ? mockListing.seller : mockName?.owner || "0x71C...9A23") as string;
   const listingPrice = listing && listing.active ? Number(formatUnits(listing.price, 6)) : mockListing ? mockListing.price : null;
+
+  const isOwnerAddress = ownerStr.startsWith('0x') && ownerStr.length === 42;
+  const { data: repRecord } = useReadContract({
+    address: REPUTATION_ADDRESS,
+    abi: REPUTATION_ABI,
+    functionName: 'getReputation',
+    args: isOwnerAddress ? [ownerStr as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: isOwnerAddress },
+  });
+
+  const [activities, setActivities] = useState<NameActivityItem[]>([]);
+
+  useEffect(() => {
+    const list = getRealisticNameActivities({
+      name,
+      hasOnchainOwner: !!hasOnchainOwner,
+      ownerAddress: hasOnchainOwner ? record?.owner : undefined,
+      expirySeconds: record ? Number(record.expiry) : undefined,
+      memberSinceSeconds: repRecord ? Number(repRecord.memberSince) : undefined,
+      isMockName: !hasOnchainOwner && !!mockName,
+    });
+    setActivities(list);
+
+    const onUpdate = () => {
+      const updated = getRealisticNameActivities({
+        name,
+        hasOnchainOwner: !!hasOnchainOwner,
+        ownerAddress: hasOnchainOwner ? record?.owner : undefined,
+        expirySeconds: record ? Number(record.expiry) : undefined,
+        memberSinceSeconds: repRecord ? Number(repRecord.memberSince) : undefined,
+        isMockName: !hasOnchainOwner && !!mockName,
+      });
+      setActivities(updated);
+    };
+
+    window.addEventListener('ans_activity_updated', onUpdate);
+    return () => window.removeEventListener('ans_activity_updated', onUpdate);
+  }, [name, hasOnchainOwner, record, repRecord, mockName]);
 
   if (!isRegistered) {
     return (
@@ -1466,10 +1837,42 @@ const NameProfileView = ({
                 <ArrowUpRight size={14}/> View on Arcscan
               </a>
             </div>
+
+            <div className="mt-3">
+              <button
+                onClick={() => navigateTo('userprofile', ownerStr)}
+                className="text-xs font-sans font-semibold text-[#1A863A] hover:underline flex items-center gap-1"
+              >
+                View owner profile →
+              </button>
+            </div>
+
+            {(() => {
+              const ownerProfile = loadProfile(ownerStr);
+              if (!ownerProfile.displayName && !ownerProfile.bio) return null;
+              return (
+                <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-sm shrink-0 shadow-sm">
+                    {ownerProfile.avatar?.trim() || (ownerProfile.displayName ? ownerProfile.displayName.slice(0, 2).toUpperCase() : ownerStr.slice(0, 4))}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-serif font-bold text-sm text-gray-900 truncate">{ownerProfile.displayName || 'Owner Profile'}</span>
+                      <ReputationBadge name={ownerStr} showDetails={false} />
+                    </div>
+                    {ownerProfile.bio && <p className="text-gray-600 font-sans text-xs line-clamp-2 leading-relaxed">{ownerProfile.bio}</p>}
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-2">
+                      {ownerProfile.twitter && <span>@{ownerProfile.twitter}</span>}
+                      {ownerProfile.website && <span>{ownerProfile.website.replace(/^https?:\/\//, '')}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           
           <div className="flex flex-col gap-3 w-full md:w-auto z-10 shrink-0">
-            <Button variant="primary" onClick={() => navigateTo('send')} className="w-full md:w-auto py-3.5 text-base">
+            <Button variant="primary" onClick={() => navigateTo('send', name)} className="w-full md:w-auto py-3.5 text-base">
               Send Payment
             </Button>
             {listingPrice !== null && (
@@ -1485,29 +1888,390 @@ const NameProfileView = ({
             <History size={20} className="text-gray-400" /> Activity History
           </h3>
           
-          <div className="space-y-2">
-            {[
-              { action: "Received Tip", amount: "50 USDC", from: "bob.arc", time: "2 days ago" },
-              { action: "Bought Name", amount: "120 USDC", from: "Marketplace", time: "1 month ago" },
-              { action: "Registered Name", amount: "-", from: "Arc Protocol", time: "6 months ago" },
-            ].map((tx, i) => (
-              <div key={i} className="flex flex-col sm:flex-row justify-between sm:items-center py-5 border-b border-gray-200 last:border-0 gap-4 hover:bg-white -mx-4 px-4 rounded-xl transition-colors">
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 shadow-sm">
-                    <ArrowRightLeft size={18} />
+          {activities.length > 0 ? (
+            <div className="space-y-2">
+              {activities.map((tx) => {
+                const getActionIcon = () => {
+                  switch (tx.action) {
+                    case 'Registered Name':
+                      return <Shield size={18} className="text-[#1A863A]" />;
+                    case 'Received Tip':
+                      return <Zap size={18} className="text-amber-500" />;
+                    case 'Bought Name':
+                      return <Store size={18} className="text-blue-500" />;
+                    case 'Gifted Name':
+                      return <Gift size={18} className="text-purple-500" />;
+                    case 'Renewed Name':
+                      return <RefreshCw size={18} className="text-[#1A863A]" />;
+                    case 'Listed for Sale':
+                      return <Tag size={18} className="text-blue-500" />;
+                    default:
+                      return <ArrowRightLeft size={18} className="text-gray-400" />;
+                  }
+                };
+
+                return (
+                  <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-5 border-b border-gray-200 last:border-0 gap-4 hover:bg-white -mx-4 px-4 rounded-xl transition-colors">
+                    <div className="flex items-center gap-5">
+                      <div className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm shrink-0">
+                        {getActionIcon()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-gray-900 font-sans font-bold">{tx.action}</p>
+                          {tx.txHash && (
+                            <a
+                              href={`https://explorer.testnet.arc.io/tx/${tx.txHash}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-gray-400 hover:text-gray-900 transition-colors p-0.5 rounded"
+                              title="View on Explorer"
+                            >
+                              <ArrowUpRight size={13} />
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-gray-500 font-mono text-xs mt-1">
+                          {tx.from}
+                          {tx.note && <span className="text-gray-600 font-sans italic ml-2">"{tx.note}"</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="sm:text-right">
+                      <p className="text-gray-900 font-mono font-bold text-base">{tx.amount}</p>
+                      <p className="text-gray-500 font-sans text-xs mt-1">{formatRelativeTime(tx.timestamp)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-gray-900 font-sans font-bold">{tx.action}</p>
-                    <p className="text-gray-500 font-mono text-xs mt-1">{tx.from}</p>
-                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
+              <History size={28} className="mx-auto mb-2 text-gray-300" />
+              <p className="font-sans text-sm">No activity recorded yet for this name.</p>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+const UserProfileView = ({
+  targetAddress,
+  auth,
+  navigateTo,
+}: {
+  targetAddress: string;
+  auth: AuthState;
+  navigateTo: (view: string, data?: string | null) => void;
+}) => {
+  const [profile, setProfile] = useState<UserProfile>(() => loadProfile(targetAddress));
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<UserProfile>(profile);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const p = loadProfile(targetAddress);
+    setProfile(p);
+    setFormData(p);
+  }, [targetAddress]);
+
+  const isOwner = !!(auth.address && targetAddress && auth.address.toLowerCase() === targetAddress.toLowerCase());
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(targetAddress);
+    setCopied(true);
+    toast.success('Address copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveProfile(formData);
+    setProfile(formData);
+    setIsEditing(false);
+    toast.success('Profile saved successfully!');
+  };
+
+  const { data: rawOwnedNames } = useReadContract({
+    address: ANS_ADDRESS,
+    abi: ANS_ABI,
+    functionName: 'getNamesByOwner',
+    args: targetAddress ? [targetAddress as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: !!targetAddress },
+  });
+
+  const ownedNames = useMemo(() => {
+    const names = (rawOwnedNames as string[] | undefined) || [];
+    if (names.length > 0) return names.map(n => n.endsWith('.arc') ? n : `${n}.arc`);
+    return INITIAL_MOCK_NAMES.filter(m => m.owner.toLowerCase() === targetAddress.toLowerCase()).map(m => m.name);
+  }, [rawOwnedNames, targetAddress]);
+
+  const { data: tierNum } = useReadContract({
+    address: REPUTATION_ADDRESS,
+    abi: REPUTATION_ABI,
+    functionName: 'getTier',
+    args: targetAddress ? [targetAddress as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: !!targetAddress },
+  });
+
+  const { data: repRecord } = useReadContract({
+    address: REPUTATION_ADDRESS,
+    abi: REPUTATION_ABI,
+    functionName: 'getReputation',
+    args: targetAddress ? [targetAddress as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: !!targetAddress },
+  });
+
+  const repStats = useMemo(() => {
+    if (repRecord) {
+      return {
+        tier: TIER_NAMES[Number(tierNum ?? 0)] ?? 'New',
+        since: repRecord.memberSince > 0n ? new Date(Number(repRecord.memberSince) * 1000).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Recent',
+        sales: Number(repRecord.salesCompleted),
+        buys: Number(repRecord.purchasesCompleted),
+        tips: Number(repRecord.tipsGiftsGiven),
+        disputes: Number(repRecord.disputeFlags),
+      };
+    }
+    return {
+      tier: 'New',
+      since: 'Recent',
+      sales: 0,
+      buys: 0,
+      tips: 0,
+      disputes: 0,
+    };
+  }, [repRecord, tierNum]);
+
+  const avatarDisplay = profile.avatar?.trim() || (profile.displayName ? profile.displayName.slice(0, 2).toUpperCase() : targetAddress.slice(0, 4));
+
+  return (
+    <div className="max-w-4xl mx-auto pt-16 pb-32 px-6">
+      <Card noPadding className="overflow-hidden shadow-lg border-gray-200">
+        <div className="bg-white p-8 md:p-12">
+          
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-8 border-b border-gray-100">
+            <div className="flex items-start gap-6">
+              <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-3xl shadow-sm shrink-0">
+                {avatarDisplay}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className="text-3xl font-serif font-bold text-gray-900">
+                    {profile.displayName || (isOwner ? 'Your Profile' : 'User Profile')}
+                  </h1>
+                  <ReputationBadge name={targetAddress} showDetails={true} />
                 </div>
-                <div className="sm:text-right">
-                  <p className="text-gray-900 font-mono font-bold text-base">{tx.amount}</p>
-                  <p className="text-gray-500 font-sans text-xs mt-1">{tx.time}</p>
+                <div className="flex items-center gap-2 text-gray-500 font-mono text-xs">
+                  <span>{targetAddress}</span>
+                  <button
+                    onClick={handleCopy}
+                    title="Copy full address"
+                    className="p-1 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                  >
+                    {copied ? <Check size={13} className="text-[#1A863A]" /> : <Copy size={13} />}
+                  </button>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {isOwner && !isEditing && (
+              <Button
+                variant="secondary"
+                onClick={() => setIsEditing(true)}
+                className="text-xs px-4 py-2 self-start flex items-center gap-1.5"
+              >
+                <Edit3 size={14} /> Edit Profile
+              </Button>
+            )}
           </div>
+
+          {isOwner && isEditing ? (
+            <form onSubmit={handleSave} className="py-8 space-y-6 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif font-bold text-xl text-gray-900">Edit Profile</h3>
+                <span className="text-xs text-gray-400 font-sans">Off-chain identity metadata</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.displayName || ''}
+                    onChange={(e) => setFormData(p => ({ ...p, displayName: e.target.value }))}
+                    placeholder="e.g. Alice Nakamoto"
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
+                    placeholder="alice@example.com"
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500">
+                    Bio
+                  </label>
+                  <span className="text-xs font-mono text-gray-400">
+                    {(formData.bio?.length || 0)}/160
+                  </span>
+                </div>
+                <textarea
+                  maxLength={160}
+                  rows={3}
+                  value={formData.bio || ''}
+                  onChange={(e) => setFormData(p => ({ ...p, bio: e.target.value }))}
+                  placeholder="Tell the community about yourself (max 160 chars)..."
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
+                    Twitter Handle
+                  </label>
+                  <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-gray-50 focus-within:border-gray-400">
+                    <span className="px-3.5 py-3 text-gray-400 text-sm font-mono flex items-center bg-gray-100 border-r border-gray-200">@</span>
+                    <input
+                      type="text"
+                      value={formData.twitter || ''}
+                      onChange={(e) => setFormData(p => ({ ...p, twitter: e.target.value.replace(/^@/, '') }))}
+                      placeholder="handle"
+                      className="w-full bg-transparent px-3 py-2 text-sm text-gray-900 focus:outline-none font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
+                    Website URL
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.website || ''}
+                    onChange={(e) => setFormData(p => ({ ...p, website: e.target.value }))}
+                    placeholder="https://example.com"
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button variant="primary" type="submit" className="text-sm px-6">
+                  Save Profile
+                </Button>
+                <Button variant="secondary" type="button" onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6">
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="py-6 space-y-4">
+              {profile.bio ? (
+                <p className="text-gray-700 font-sans text-base leading-relaxed max-w-2xl">{profile.bio}</p>
+              ) : (
+                <p className="text-gray-400 font-sans text-sm italic">No bio provided yet.</p>
+              )}
+
+              <div className="flex flex-wrap items-center gap-5 text-sm font-sans text-gray-500 pt-2">
+                {profile.email && (
+                  <span className="flex items-center gap-1.5 text-gray-600">
+                    <Mail size={14} className="text-gray-400" /> {profile.email}
+                  </span>
+                )}
+                {profile.twitter && (
+                  <a
+                    href={`https://twitter.com/${profile.twitter}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-blue-600 hover:underline font-medium"
+                  >
+                    <span>@{profile.twitter}</span>
+                  </a>
+                )}
+                {profile.website && (
+                  <a
+                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-[#1A863A] hover:underline font-medium"
+                  >
+                    <ArrowUpRight size={14} /> {profile.website.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-8 border-t border-gray-100">
+            <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-400 mb-4">
+              Registered Names ({ownedNames.length})
+            </h3>
+            <div className="flex flex-wrap gap-2.5">
+              {ownedNames.map(nameItem => (
+                <button
+                  key={nameItem}
+                  onClick={() => navigateTo('profile', nameItem)}
+                  className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-900 border border-gray-200 rounded-xl font-mono text-xs font-semibold transition-colors flex items-center gap-2 group"
+                >
+                  <span>{nameItem}</span>
+                  <ArrowRightIcon size={12} className="text-gray-400 group-hover:text-gray-700 transition-colors" />
+                </button>
+              ))}
+              {ownedNames.length === 0 && (
+                <p className="text-sm font-sans text-gray-400">No registered .arc names for this wallet.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-8 mt-8 border-t border-gray-100">
+            <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-400 mb-4">
+              Reputation Stats
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Member Since</p>
+                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.since}</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Sales</p>
+                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.sales}</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Purchases</p>
+                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.buys}</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Tips / Gifts</p>
+                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.tips}</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Disputes</p>
+                <p className={`text-base font-mono font-bold mt-1 ${repStats.disputes > 0 ? 'text-red-600' : 'text-[#1A863A]'}`}>{repStats.disputes}</p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </Card>
     </div>
@@ -1517,13 +2281,14 @@ const NameProfileView = ({
 export default function App() {
   const [currentView, setCurrentView] = useState('home');
   const [profileTarget, setProfileTarget] = useState<string | null>(null);
+  const [userProfileTarget, setUserProfileTarget] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [isMobileWalletOpen, setIsMobileWalletOpen] = useState(false);
 
   const auth = usePasskeyAuth();
   const ans = useANS(auth.credential);
 
-  // Wagmi contract read for live USDC balance
-  const { data: usdcBalanceRaw } = useReadContract({
+  const { data: usdcBalanceRaw, isLoading: isBalanceLoading } = useReadContract({
     address: USDC_ADDRESS,
     abi: USDC_ABI,
     functionName: 'balanceOf',
@@ -1531,11 +2296,10 @@ export default function App() {
     chainId: arcTestnet.id,
     query: {
       enabled: !!auth.address,
-      refetchInterval: 5000,
+      refetchInterval: 10000,
     },
   });
 
-  // Direct RPC fallback to ensure balance always loads accurately
   const [fallbackBalance, setFallbackBalance] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1560,7 +2324,7 @@ export default function App() {
       }
     };
     fetchBal();
-    const timer = setInterval(fetchBal, 6000);
+    const timer = setInterval(fetchBal, 10000);
     return () => {
       active = false;
       clearInterval(timer);
@@ -1569,12 +2333,10 @@ export default function App() {
 
   const formattedBalance = useMemo(() => {
     if (usdcBalanceRaw !== undefined && usdcBalanceRaw !== null) {
-      const val = Number(formatUnits(usdcBalanceRaw, 6));
-      return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return Number(formatUnits(usdcBalanceRaw, 6)).toFixed(2);
     }
     if (fallbackBalance !== null) {
-      const val = Number(fallbackBalance);
-      return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return Number(fallbackBalance).toFixed(2);
     }
     return '0.00';
   }, [usdcBalanceRaw, fallbackBalance]);
@@ -1588,15 +2350,65 @@ export default function App() {
     setTimeout(() => setCopiedAddress(false), 2000);
   };
 
+  const [currentPrimaryName, setCurrentPrimaryName] = useState<string | null>(() => getUserPrimaryName(auth.address));
+
+  const { data: onchainPrimary } = useReadContract({
+    address: ANS_ADDRESS,
+    abi: ANS_ABI,
+    functionName: 'reverseLookup',
+    args: auth.address ? [auth.address as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: !!auth.address },
+  });
+
+  useEffect(() => {
+    if (auth.address) {
+      const stored = getUserPrimaryName(auth.address);
+      if (stored) {
+        setCurrentPrimaryName(stored);
+      } else if (onchainPrimary && onchainPrimary.length > 0) {
+        const full = onchainPrimary.endsWith('.arc') ? onchainPrimary : `${onchainPrimary}.arc`;
+        setCurrentPrimaryName(full);
+      }
+    } else {
+      setCurrentPrimaryName(null);
+    }
+
+    const onPrimaryChanged = (e: any) => {
+      if (e.detail?.primaryName) {
+        setCurrentPrimaryName(e.detail.primaryName);
+      }
+    };
+    window.addEventListener('ans_primary_changed', onPrimaryChanged);
+    return () => window.removeEventListener('ans_primary_changed', onPrimaryChanged);
+  }, [auth.address, onchainPrimary]);
+
+  const [sendRecipientTarget, setSendRecipientTarget] = useState<string>('');
+
   const navigateTo = (view: string, data: string | null = null) => {
-    if (view === 'profile') setProfileTarget(data);
-    setCurrentView(view);
+    if (view === 'profile') {
+      if (data === 'self' && auth.address) {
+        setUserProfileTarget(auth.address);
+        setCurrentView('userprofile');
+      } else {
+        setProfileTarget(data);
+        setCurrentView(view);
+      }
+    } else if (view === 'userprofile') {
+      const target = data === 'self' || !data ? auth.address : data;
+      setUserProfileTarget(target);
+      setCurrentView('userprofile');
+    } else if (view === 'send') {
+      setSendRecipientTarget(data || '');
+      setCurrentView('send');
+    } else {
+      setCurrentView(view);
+    }
     window.scrollTo(0, 0);
   };
 
   const navItems = [
     { id: 'names', label: 'Names', icon: Search },
-    { id: 'send', label: 'Send', icon: Send },
     { id: 'marketplace', label: 'Marketplace', icon: Store },
     { id: 'mynames', label: 'My Names', icon: User },
   ];
@@ -1616,47 +2428,9 @@ export default function App() {
               ANS
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {auth.isConnected && auth.address ? (
-              <>
-                <div 
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-sans font-medium text-gray-800 shadow-sm"
-                  title="Your USDC balance"
-                >
-                  <CreditCard size={14} className="text-[#1A863A]" />
-                  <span className="font-mono font-bold text-gray-900">{formattedBalance}</span>
-                  <span className="text-gray-500 font-semibold text-[11px]">USDC</span>
-                </div>
-                <button
-                  onClick={handleCopyAddress}
-                  title="Click to copy your address"
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 hover:border-gray-300 rounded-xl font-mono text-xs font-semibold transition-all shadow-sm active:scale-95"
-                >
-                  {copiedAddress ? (
-                    <>
-                      <Check size={13} className="text-[#1A863A]" />
-                      <span className="text-[#1A863A] font-sans font-medium text-xs">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{auth.address.slice(0, 6)}...{auth.address.slice(-4)}</span>
-                      <Copy size={13} className="text-gray-400" />
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => auth.signOut()}
-                  title="Sign out"
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl transition-colors shadow-sm"
-                >
-                  <LogOut size={15} />
-                </button>
-              </>
-            ) : null}
-            <Button variant="primary" onClick={() => navigateTo('names')} className="font-sans font-bold text-sm px-6">
-              Launch App
-            </Button>
-          </div>
+          <Button variant="primary" onClick={() => navigateTo('names')} className="font-sans font-bold text-sm px-6">
+            Launch App
+          </Button>
         </header>
       ) : (
         <header className="flex items-center justify-between px-4 sm:px-8 h-20 border-b border-gray-200 bg-white sticky top-0 z-50 shadow-sm">
@@ -1689,36 +2463,59 @@ export default function App() {
             
             {auth.isConnected && auth.address ? (
               <>
-                {/* Balance Display */}
-                <div 
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-sans font-medium text-gray-800 shadow-sm cursor-default"
-                  title="Your USDC balance on Arc Testnet"
-                >
-                  <CreditCard size={14} className="text-[#1A863A] shrink-0" />
-                  <span className="font-mono font-bold text-gray-900">{formattedBalance}</span>
-                  <span className="text-gray-500 text-[11px] font-semibold">USDC</span>
+                {isBalanceLoading && usdcBalanceRaw === undefined && fallbackBalance === null ? (
+                  <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-xl border border-gray-200" />
+                ) : (
+                  <div 
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-sans font-medium text-gray-800 shadow-sm cursor-default"
+                    title="Your USDC balance on Arc Testnet"
+                  >
+                    <CreditCard size={14} className="text-[#1A863A] shrink-0" />
+                    <span className="font-mono font-bold text-gray-900">{formattedBalance}</span>
+                    <span className="text-gray-500 text-[11px] font-semibold">USDC</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {currentPrimaryName && (
+                    <button
+                      onClick={() => navigateTo('profile', currentPrimaryName)}
+                      title="View your main identity profile"
+                      className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl font-sans text-xs font-bold transition-all shadow-sm group active:scale-95"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-[#1A863A] shrink-0" />
+                      <span className="font-serif">{currentPrimaryName}</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleCopyAddress}
+                    title="Click to copy your address"
+                    className="flex items-center gap-2 px-2.5 sm:px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-xl font-mono text-xs font-medium transition-all shadow-sm group active:scale-95"
+                  >
+                    {copiedAddress ? (
+                      <>
+                        <Check size={14} className="text-[#1A863A] shrink-0" />
+                        <span className="text-[#1A863A] font-sans font-medium">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{auth.address.slice(0, 5)}...{auth.address.slice(-4)}</span>
+                        <Copy size={12} className="text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                {/* Copy Address Button */}
                 <button
-                  onClick={handleCopyAddress}
-                  title="Click to copy your address"
-                  className="flex items-center gap-2 px-3 sm:px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 hover:border-gray-300 rounded-xl font-mono text-xs font-semibold transition-all shadow-sm group active:scale-95"
+                  onClick={() => navigateTo('userprofile', auth.address)}
+                  title="View your public profile"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-sans font-medium text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors shadow-sm"
                 >
-                  {copiedAddress ? (
-                    <>
-                      <Check size={14} className="text-[#1A863A] shrink-0" />
-                      <span className="text-[#1A863A] font-sans font-medium">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{auth.address.slice(0, 6)}...{auth.address.slice(-4)}</span>
-                      <Copy size={13} className="text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
-                    </>
-                  )}
+                  <User size={14} />
+                  <span>Profile</span>
                 </button>
 
-                {/* Sign Out Button */}
                 <button
                   onClick={() => auth.signOut()}
                   title="Sign out"
@@ -1748,10 +2545,11 @@ export default function App() {
       <main className="flex-1 w-full relative">
         {currentView === 'home' && <HomeView navigateTo={navigateTo} navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
         {currentView === 'names' && <NamesAppView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
-        {currentView === 'marketplace' && <MarketplaceView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
-        {currentView === 'mynames' && <MyNamesView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} />}
-        {currentView === 'send' && <SendView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} />}
+        {currentView === 'marketplace' && <MarketplaceView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} navigateTo={navigateTo} />}
+        {currentView === 'mynames' && <MyNamesView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} navigateTo={navigateTo} />}
+        {currentView === 'send' && <SendView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} defaultRecipient={sendRecipientTarget} />}
         {currentView === 'profile' && profileTarget && <NameProfileView name={profileTarget} navigateTo={navigateTo} />}
+        {currentView === 'userprofile' && userProfileTarget && <UserProfileView targetAddress={userProfileTarget} auth={auth} navigateTo={navigateTo} />}
       </main>
 
       <footer className="bg-white border-t border-gray-200 py-16 px-6 pb-28 md:pb-16 z-10 relative">
@@ -1768,7 +2566,6 @@ export default function App() {
               <span className="text-gray-900 mb-1 font-serif font-bold text-base">Navigation</span>
               <button onClick={() => navigateTo('home')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Home</button>
               <button onClick={() => navigateTo('names')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Names</button>
-              <button onClick={() => navigateTo('send')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Send</button>
               <button onClick={() => navigateTo('marketplace')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Marketplace</button>
               <button onClick={() => navigateTo('mynames')} className="text-gray-500 hover:text-gray-900 text-left font-medium">My Names</button>
             </div>
@@ -1782,6 +2579,7 @@ export default function App() {
         </div>
       </footer>
 
+      {/* Mobile Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center pb-safe pt-2 z-50 px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
         {navItems.map(item => {
           const Icon = item.icon;
@@ -1800,23 +2598,93 @@ export default function App() {
         <button
           onClick={() => {
             if (auth.isConnected) {
-              handleCopyAddress();
+              setIsMobileWalletOpen(true);
             } else {
               auth.signIn();
             }
           }}
           className={`flex flex-col items-center justify-center w-full py-2 mb-2 rounded-lg transition-colors ${auth.isConnected ? 'text-[#1A863A]' : 'text-gray-400'}`}
         >
-          {auth.isConnected ? (
-            copiedAddress ? <Check size={20} className="mb-1.5 text-[#1A863A]" /> : <Wallet size={20} className="mb-1.5" />
-          ) : (
-            <Wallet size={20} className="mb-1.5" strokeWidth={1.5} />
-          )}
-          <span className="text-[10px] font-sans font-bold">
-            {auth.isConnected ? (copiedAddress ? 'Copied!' : `${formattedBalance} USDC`) : 'Sign In'}
+          <Wallet size={20} className="mb-1.5" strokeWidth={1.5} />
+          <span className="text-[10px] font-mono font-bold">
+            {auth.isConnected && auth.address ? `${auth.address.slice(0, 5)}...${auth.address.slice(-4)}` : 'Sign In'}
           </span>
         </button>
       </nav>
+
+      {/* Mobile Wallet Bottom Sheet */}
+      {isMobileWalletOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileWalletOpen(false)}>
+          <div className="w-full bg-white rounded-t-3xl p-6 shadow-2xl border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+            
+            <div className="flex justify-between items-center mb-6">
+              <span className="font-serif font-bold text-xl text-gray-900">Your Wallet</span>
+              <button onClick={() => setIsMobileWalletOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400 mb-1">Smart Account</p>
+                  <p className="font-mono text-xs font-semibold text-gray-900 truncate">{auth.address}</p>
+                </div>
+                <button
+                  onClick={handleCopyAddress}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-sans font-semibold text-gray-700 shadow-sm active:scale-95 shrink-0"
+                >
+                  {copiedAddress ? (
+                    <>
+                      <Check size={14} className="text-[#1A863A]" />
+                      <span className="text-[#1A863A]">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} className="text-gray-400" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400 mb-1">USDC Balance</p>
+                  <p className="font-mono text-xl font-bold text-[#1A863A]">{formattedBalance} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center">
+                  <CreditCard size={20} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <Button 
+                variant="secondary" 
+                className="w-full py-3.5 text-sm flex items-center justify-center gap-2"
+                onClick={() => {
+                  setIsMobileWalletOpen(false);
+                  navigateTo('userprofile', auth.address);
+                }}
+              >
+                <User size={16} /> View Profile
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full py-3 text-sm text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+                onClick={() => {
+                  setIsMobileWalletOpen(false);
+                  auth.signOut();
+                }}
+              >
+                <LogOut size={16} /> Sign Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
