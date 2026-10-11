@@ -907,6 +907,78 @@ const NamesAppView = ({
   );
 };
 
+const MarketplaceSellerBadge = ({
+  sellerAddress,
+  navigateTo,
+}: {
+  sellerAddress: string;
+  navigateTo: (view: string, data?: string | null) => void;
+}) => {
+  const { profile } = useUserProfile(sellerAddress);
+  return (
+    <div className="text-right">
+      <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Seller</p>
+      <button 
+        onClick={() => navigateTo('userprofile', sellerAddress)}
+        className="text-xs font-mono text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ml-auto"
+        title="View Seller Profile"
+      >
+        {profile.avatarUrl ? (
+          <img src={profile.avatarUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+        ) : null}
+        <span>{profile.displayName || `${sellerAddress.slice(0, 6)}...${sellerAddress.slice(-4)}`}</span>
+      </button>
+    </div>
+  );
+};
+
+const TipRecipientProfileBadge = ({ resolvedAddress }: { resolvedAddress: string }) => {
+  const { profile: resolvedProfile } = useUserProfile(resolvedAddress);
+  if (!resolvedProfile.displayName) return null;
+  return (
+    <div className="mt-2.5 flex items-center gap-2 text-xs text-gray-700 bg-white border border-gray-200 px-3 py-1.5 rounded-xl w-fit shadow-sm">
+      {resolvedProfile.avatarUrl && (
+        <img src={resolvedProfile.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
+      )}
+      <span className="font-sans font-bold text-gray-900">{resolvedProfile.displayName}</span>
+      <ReputationBadge name={resolvedAddress} showDetails={false} />
+    </div>
+  );
+};
+
+const OwnerProfileSnippet = ({ 
+  ownerStr, 
+  navigateTo 
+}: { 
+  ownerStr: string; 
+  navigateTo: (view: string, data?: string | null) => void;
+}) => {
+  const { profile: ownerProfile } = useUserProfile(ownerStr);
+  if (!ownerProfile.displayName && !ownerProfile.bio && !ownerProfile.avatarUrl) return null;
+  return (
+    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-4">
+      <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-sm shrink-0 shadow-sm overflow-hidden">
+        {ownerProfile.avatarUrl ? (
+          <img src={ownerProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          ownerProfile.avatar?.trim() || (ownerProfile.displayName ? ownerProfile.displayName.slice(0, 2).toUpperCase() : ownerStr.slice(0, 4))
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="font-serif font-bold text-sm text-gray-900 truncate">{ownerProfile.displayName || 'Owner Profile'}</span>
+          <ReputationBadge name={ownerStr} showDetails={false} />
+        </div>
+        {ownerProfile.bio && <p className="text-gray-600 font-sans text-xs line-clamp-2 leading-relaxed">{ownerProfile.bio}</p>}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-2">
+          {ownerProfile.twitter && <span>@{ownerProfile.twitter}</span>}
+          {ownerProfile.website && <span>{ownerProfile.website.replace(/^https?:\/\//, '')}</span>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MarketplaceView = ({ 
   navigateToProfile, 
   auth, 
@@ -1071,16 +1143,7 @@ const MarketplaceView = ({
                     <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Asking Price</p>
                     <p className="text-2xl font-mono text-gray-900 font-bold">{listing.price} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Seller</p>
-                    <button 
-                      onClick={() => navigateTo('userprofile', listing.seller)}
-                      className="text-xs font-mono text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2 py-1 rounded-md transition-colors"
-                      title="View Seller Profile"
-                    >
-                      {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
-                    </button>
-                  </div>
+                  <MarketplaceSellerBadge sellerAddress={listing.seller} navigateTo={navigateTo} />
                 </div>
                 
                 {isOwnListing ? (
@@ -1822,16 +1885,9 @@ const SendView = ({
                   </div>
                 )}
               </div>
-              {resolvedAddress && resolvedAddress.startsWith('0x') && resolvedAddress.length === 42 && (() => {
-                const resolvedProfile = loadProfile(resolvedAddress);
-                if (!resolvedProfile.displayName) return null;
-                return (
-                  <div className="mt-2.5 flex items-center gap-2 text-xs text-gray-700 bg-white border border-gray-200 px-3 py-1.5 rounded-xl w-fit shadow-sm">
-                    <span className="font-sans font-bold text-gray-900">{resolvedProfile.displayName}</span>
-                    <ReputationBadge name={resolvedAddress} showDetails={false} />
-                  </div>
-                );
-              })()}
+              {resolvedAddress && resolvedAddress.startsWith('0x') && resolvedAddress.length === 42 && (
+                <TipRecipientProfileBadge resolvedAddress={resolvedAddress} />
+              )}
             </div>
 
             <div>
@@ -2046,28 +2102,7 @@ const NameProfileView = ({
               </button>
             </div>
 
-            {(() => {
-              const ownerProfile = loadProfile(ownerStr);
-              if (!ownerProfile.displayName && !ownerProfile.bio) return null;
-              return (
-                <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-sm shrink-0 shadow-sm">
-                    {ownerProfile.avatar?.trim() || (ownerProfile.displayName ? ownerProfile.displayName.slice(0, 2).toUpperCase() : ownerStr.slice(0, 4))}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-serif font-bold text-sm text-gray-900 truncate">{ownerProfile.displayName || 'Owner Profile'}</span>
-                      <ReputationBadge name={ownerStr} showDetails={false} />
-                    </div>
-                    {ownerProfile.bio && <p className="text-gray-600 font-sans text-xs line-clamp-2 leading-relaxed">{ownerProfile.bio}</p>}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-2">
-                      {ownerProfile.twitter && <span>@{ownerProfile.twitter}</span>}
-                      {ownerProfile.website && <span>{ownerProfile.website.replace(/^https?:\/\//, '')}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+            <OwnerProfileSnippet ownerStr={ownerStr} navigateTo={navigateTo} />
           </div>
           
           <div className="flex flex-col gap-3 w-full md:w-auto z-10 shrink-0">
@@ -2171,13 +2206,38 @@ const UserProfileView = ({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'portfolio' | 'activity'>('overview');
   const [isAvatarSaving, setIsAvatarSaving] = useState(false);
+  const [isBannerSaving, setIsBannerSaving] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   const { setAvatar } = useANS(auth.credential);
 
   useEffect(() => {
+    // 1. Instantly show local cached profile
     const p = loadProfile(targetAddress);
     setProfile(p);
     setFormData(p);
+
+    // 2. Fetch remote profile from Supabase globally
+    let isCancelled = false;
+    fetchProfileGlobal(targetAddress).then((remote) => {
+      if (!isCancelled && remote) {
+        setProfile(remote);
+        setFormData(remote);
+      }
+    });
+
+    // 3. Real-time subscription to profile updates
+    const unsubscribe = subscribeToProfile(targetAddress, (updated) => {
+      if (!isCancelled) {
+        setProfile(updated);
+        setFormData(updated);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      unsubscribe();
+    };
   }, [targetAddress]);
 
   const isOwner = !!(auth.address && targetAddress && auth.address.toLowerCase() === targetAddress.toLowerCase());
@@ -2189,33 +2249,91 @@ const UserProfileView = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveProfile(formData);
-    setProfile(formData);
-    setIsEditing(false);
-    toast.success('Profile metadata saved locally!');
+    try {
+      setIsSavingProfile(true);
+      toast.loading('Saving profile globally...', { id: 'save-profile' });
+      const res = await saveProfileGlobal(formData);
+      setProfile(formData);
+      setIsEditing(false);
+      if (res.globalSaved) {
+        toast.success('Profile saved and published globally!', { id: 'save-profile' });
+      } else {
+        toast.success('Profile saved locally!', { id: 'save-profile', description: res.error });
+      }
+    } catch (err: any) {
+      console.error('Failed to save profile:', err);
+      toast.error('Failed to save profile', { id: 'save-profile' });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image must be smaller than 2MB");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image must be smaller than 10MB");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Url = event.target?.result as string;
+    try {
+      setIsAvatarSaving(true);
+      toast.loading("Compressing and saving avatar...", { id: "pfp-save" });
+      const base64Url = await compressImage(file, 400, 400, 0.85);
       const updatedProfile = { ...profile, avatarUrl: base64Url };
-      saveProfile(updatedProfile);
+      
+      const res = await saveProfileGlobal(updatedProfile);
       setProfile(updatedProfile);
       setFormData(updatedProfile);
-      toast.success("Avatar updated locally! Connect a Supabase backend to make it global.", { duration: 6000 });
-    };
-    reader.readAsDataURL(file);
+      
+      if (res.globalSaved) {
+        toast.success("Profile photo updated globally!", { id: "pfp-save" });
+      } else {
+        toast.success("Avatar updated locally!", { id: "pfp-save", description: res.error });
+      }
+    } catch (err) {
+      console.error("Avatar upload failed:", err);
+      toast.error("Failed to upload avatar", { id: "pfp-save" });
+    } finally {
+      setIsAvatarSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image must be smaller than 10MB");
+      return;
+    }
+
+    try {
+      setIsBannerSaving(true);
+      toast.loading("Compressing and saving banner...", { id: "banner-save" });
+      const base64Url = await compressImage(file, 1400, 500, 0.85);
+      const updatedProfile = { ...profile, bannerUrl: base64Url };
+      
+      const res = await saveProfileGlobal(updatedProfile);
+      setProfile(updatedProfile);
+      setFormData(updatedProfile);
+      
+      if (res.globalSaved) {
+        toast.success("Banner updated globally across all devices!", { id: "banner-save" });
+      } else {
+        toast.success("Banner saved locally!", { id: "banner-save", description: res.error });
+      }
+    } catch (err) {
+      console.error("Banner upload failed:", err);
+      toast.error("Failed to upload banner", { id: "banner-save" });
+    } finally {
+      setIsBannerSaving(false);
+      e.target.value = '';
+    }
   };
 
   const { data: rawOwnedNames, isLoading: isNamesLoading } = useReadContract({
@@ -2285,11 +2403,29 @@ const UserProfileView = ({
   return (
     <div className="w-full min-h-screen bg-[#FAFAFA] text-gray-900 -mt-16 pt-16 font-sans">
       {/* Banner */}
-      <div className="w-full h-48 md:h-64 relative group border-b border-gray-200" style={{ background: bannerGradient }}>
+      <div 
+        className="w-full h-48 md:h-64 relative group border-b border-gray-200 overflow-hidden" 
+        style={{ 
+          background: profile.bannerUrl 
+            ? `url("${profile.bannerUrl}") center/cover no-repeat` 
+            : bannerGradient 
+        }}
+      >
         {isOwner && (
-          <button className="absolute top-4 right-4 bg-black/40 hover:bg-black/60 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-2 border border-gray-200 backdrop-blur-md">
-            <Camera size={14} /> Edit Banner
-          </button>
+          <label 
+            className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/20 backdrop-blur-md cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+            title="Edit banner image"
+          >
+            <Camera size={14} />
+            <span>{isBannerSaving ? 'Saving Banner...' : 'Edit Banner'}</span>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept="image/*" 
+              disabled={isBannerSaving}
+              onChange={handleBannerUpload} 
+            />
+          </label>
         )}
       </div>
 
@@ -2304,10 +2440,13 @@ const UserProfileView = ({
                 avatarDisplay
               )}
               {isOwner && (
-                <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity cursor-pointer text-white">
+                <label 
+                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity cursor-pointer text-white"
+                  title="Upload profile picture"
+                >
                   <Camera size={24} className="mb-1" />
-                  <span className="text-[10px] font-bold">Upload PFP</span>
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  <span className="text-[10px] font-bold">{isAvatarSaving ? 'Saving...' : 'Upload PFP'}</span>
+                  <input type="file" className="hidden" accept="image/*" disabled={isAvatarSaving} onChange={handleImageUpload} />
                 </label>
               )}
             </div>
@@ -2361,7 +2500,10 @@ const UserProfileView = ({
                  <form onSubmit={handleSave} className="bg-white border border-gray-200 rounded-xl p-8 space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="font-serif font-bold text-xl text-gray-900">Edit Profile</h3>
-                      <span className="text-xs text-gray-500 font-sans">Local metadata</span>
+                      <span className="text-xs text-[#1A863A] font-sans font-semibold flex items-center gap-1.5 bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
+                        <span className="w-2 h-2 rounded-full bg-[#1A863A] animate-pulse"></span>
+                        Global Profile
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -2398,8 +2540,12 @@ const UserProfileView = ({
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                      <Button variant="primary" type="submit" className="text-sm px-6 bg-gray-900 text-white border-none hover:bg-gray-800">Save Profile</Button>
-                      <Button variant="secondary" type="button" onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6 bg-transparent border-gray-200 text-gray-900 hover:bg-white">Cancel</Button>
+                      <Button variant="primary" type="submit" disabled={isSavingProfile} className="text-sm px-6 bg-gray-900 text-white border-none hover:bg-gray-800">
+                        {isSavingProfile ? 'Saving...' : 'Save Profile'}
+                      </Button>
+                      <Button variant="secondary" type="button" disabled={isSavingProfile} onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6 bg-transparent border-gray-200 text-gray-900 hover:bg-white">
+                        Cancel
+                      </Button>
                     </div>
                  </form>
                ) : (
