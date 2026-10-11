@@ -1,10 +1,11 @@
+import { trackEvent } from './lib/analytics';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, Send, Store, Wallet, User, Check, AlertCircle, ChevronDown, 
   ArrowRightLeft, Tag, X, Shield, History, ArrowUpRight, Info, 
   Activity, Zap, CreditCard, CheckCircle2, RefreshCw, Clock, ArrowRight as ArrowRightIcon, Gift,
-  Copy, LogOut, Mail, Edit3, Star, Sparkles
-} from 'lucide-react';
+  Copy, LogOut, Mail, Edit3, Star, Sparkles, Fingerprint
+, Camera, Share} from 'lucide-react';
 import { toast } from 'sonner';
 import { useReadContract } from 'wagmi';
 import { arcTestnet } from 'viem/chains';
@@ -21,6 +22,7 @@ import {
   getUserPrimaryName,
   setUserPrimaryName,
   getRecentlyRegisteredNames,
+  getUserActivities,
 } from './lib/activity';
 import {
   fetchActiveListings,
@@ -28,6 +30,19 @@ import {
   removeTrackedListing,
   type MarketplaceListing,
 } from './lib/marketplace';
+import {
+  UserProfile,
+  loadProfile,
+  saveProfile,
+  saveProfileGlobal,
+  fetchProfileGlobal,
+  compressImage,
+  useUserProfile,
+  subscribeToProfile,
+} from './lib/profile';
+export type { UserProfile };
+export { loadProfile, saveProfile, saveProfileGlobal, fetchProfileGlobal, compressImage, useUserProfile };
+
 
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -62,33 +77,6 @@ const MOCK_REPUTATION: Record<string, { tier: string; txs: number; sales: number
   "alex.arc": { tier: "Verified", txs: 14, sales: 8, buys: 4, tips: 2, since: "2026", disputes: 0 },
   "build.arc": { tier: "Trusted", txs: 28, sales: 3, buys: 4, tips: 8, since: "Apr 2025", disputes: 0 },
   "pay.arc": { tier: "Elite", txs: 310, sales: 4, buys: 20, tips: 150, since: "Jan 2023", disputes: 0 },
-};
-
-export type UserProfile = {
-  address: string;
-  email?: string;
-  displayName?: string;
-  bio?: string; // max 160 chars
-  twitter?: string; // handle without @
-  website?: string;
-  avatar?: string; // emoji or initials fallback
-};
-
-export const loadProfile = (address: string): UserProfile => {
-  if (!address) return { address: '' };
-  try {
-    const raw = localStorage.getItem(`ans_profile_${address.toLowerCase()}`) || localStorage.getItem(`ans_profile_${address}`);
-    return raw ? JSON.parse(raw) : { address };
-  } catch {
-    return { address };
-  }
-};
-
-export const saveProfile = (profile: UserProfile) => {
-  if (!profile.address) return;
-  const json = JSON.stringify(profile);
-  localStorage.setItem(`ans_profile_${profile.address.toLowerCase()}`, json);
-  localStorage.setItem(`ans_profile_${profile.address}`, json);
 };
 
 const INITIAL_MOCK_NAMES = [
@@ -622,6 +610,54 @@ const HomeView = ({
               Learn More
             </Button>
           </div>
+          
+          {/* How It Works Guide */}
+          <div className="mt-20 sm:mt-24 w-full max-w-5xl mx-auto text-left relative">
+            <Card className="p-8 sm:p-10 border-gray-200 bg-white/70 backdrop-blur-xl shadow-lg shadow-gray-200/50">
+              <div className="flex flex-col md:flex-row md:items-center gap-10 md:gap-14">
+                
+                <div className="md:w-1/4 shrink-0 text-center md:text-left">
+                  <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">How ANS works</h3>
+                  <p className="text-sm font-sans text-gray-500 leading-relaxed font-medium">
+                    A simpler way to identify and use names on Arc.
+                  </p>
+                </div>
+
+                <div className="hidden md:block w-px h-24 bg-gray-100 shrink-0"></div>
+
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-10 sm:gap-6 relative">
+                  
+                  {/* Connection Line for Desktop */}
+                  <div className="hidden sm:block absolute top-4 left-[10%] right-[10%] h-[1px] bg-gray-100 -z-10"></div>
+
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-sans font-bold text-xs mb-4 shadow-sm">1</div>
+                    <h4 className="font-bold text-gray-900 text-[15px] mb-2">Find your name</h4>
+                    <p className="text-gray-500 text-[13px] leading-relaxed font-sans max-w-[200px]">
+                      Search for a memorable .arc name.
+                    </p>
+                  </div>
+                  
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-sans font-bold text-xs mb-4 shadow-sm">2</div>
+                    <h4 className="font-bold text-gray-900 text-[15px] mb-2">Register your identity</h4>
+                    <p className="text-gray-500 text-[13px] leading-relaxed font-sans max-w-[200px]">
+                      Register your chosen name through the ANS registration flow.
+                    </p>
+                  </div>
+                  
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="w-8 h-8 rounded-full bg-[#1A863A]/10 border border-[#1A863A]/20 flex items-center justify-center text-[#1A863A] font-sans font-bold text-xs mb-4 shadow-sm">3</div>
+                    <h4 className="font-bold text-gray-900 text-[15px] mb-2">Use your name</h4>
+                    <p className="text-gray-500 text-[13px] leading-relaxed font-sans max-w-[200px]">
+                      Make recipients easier to identify when sending USDC on Arc.
+                    </p>
+                  </div>
+                  
+                </div>
+              </div>
+            </Card>
+          </div>
         </div>
       </section>
 
@@ -876,11 +912,13 @@ const MarketplaceView = ({
   auth, 
   ans,
   navigateTo,
+  handleListForSale,
 }: { 
   navigateToProfile: (name: string) => void; 
   auth: AuthState; 
   ans: ReturnType<typeof useANS>;
   navigateTo: (view: string, data?: string | null) => void;
+  handleListForSale: (name: string) => void;
 }) => {
   const [filter, setFilter] = useState('all');
   const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
@@ -1028,23 +1066,44 @@ const MarketplaceView = ({
                   </h3>
                   <ReputationBadge name={listing.name} showDetails={false} />
                 </div>
-                <div className="mb-8">
-                  <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-2">Asking Price</p>
-                  <p className="text-2xl font-mono text-gray-900 font-bold">{listing.price} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
+                <div className="mb-8 flex justify-between items-end">
+                  <div>
+                    <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Asking Price</p>
+                    <p className="text-2xl font-mono text-gray-900 font-bold">{listing.price} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Seller</p>
+                    <button 
+                      onClick={() => navigateTo('userprofile', listing.seller)}
+                      className="text-xs font-mono text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2 py-1 rounded-md transition-colors"
+                      title="View Seller Profile"
+                    >
+                      {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
+                    </button>
+                  </div>
                 </div>
                 
                 {isOwnListing ? (
-                  <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-sans font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                  <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col xl:flex-row items-center justify-between gap-3">
+                    <span className="text-[11px] font-sans font-bold text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded border border-blue-200 whitespace-nowrap self-start xl:self-center">
                       Your Listing
                     </span>
-                    <Button 
-                      variant="secondary" 
-                      className="text-xs py-1.5 px-3 text-red-600 hover:bg-red-50 hover:border-red-200"
-                      onClick={() => handleCancelListing(listing.name)}
-                    >
-                      Cancel Listing
-                    </Button>
+                    <div className="flex items-center gap-2 w-full xl:w-auto">
+                      <Button 
+                        variant="secondary" 
+                        className="text-xs py-1.5 px-3 flex-1 xl:flex-none justify-center"
+                        onClick={() => handleListForSale(listing.name)}
+                      >
+                        Update Price
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        className="text-xs py-1.5 px-3 text-red-600 hover:bg-red-50 hover:border-red-200 flex-1 xl:flex-none justify-center"
+                        onClick={() => handleCancelListing(listing.name)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
                 ) : selectedListing?.name === listing.name ? (
                   <div className="mt-auto border-t border-gray-100 pt-5 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
@@ -1099,6 +1158,72 @@ const MarketplaceView = ({
   );
 };
 
+const PasskeySignInCard = ({ auth, actionText = "Connect your wallet" }: { auth: AuthState, actionText?: string }) => {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 px-6 max-w-[540px] mx-auto w-full">
+      <Card className="w-full text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white border border-gray-100 p-8 sm:p-14 relative overflow-hidden group">
+        {/* Subtle decorative background blur */}
+        <div className="absolute -top-32 -left-32 w-64 h-64 bg-[#1A863A]/5 rounded-full blur-3xl pointer-events-none group-hover:bg-[#1A863A]/10 transition-colors duration-700" />
+        <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-[#1A863A]/5 rounded-full blur-3xl pointer-events-none group-hover:bg-[#1A863A]/10 transition-colors duration-700" />
+        
+        <div className="w-20 h-20 rounded-[24px] bg-white border border-[#1A863A]/10 flex items-center justify-center mx-auto mb-8 shadow-sm relative z-10 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1A863A]/5 to-[#1A863A]/10" />
+          <Fingerprint size={36} strokeWidth={1.5} className="text-[#1A863A] relative z-10" />
+        </div>
+        
+        <h2 className="text-2xl sm:text-[32px] tracking-tight font-serif font-bold text-gray-900 mb-4 relative z-10">
+          Secure Sign In
+        </h2>
+        
+        <p className="text-gray-500 font-sans text-sm sm:text-[15px] mb-8 leading-relaxed relative z-10 max-w-[360px] mx-auto">
+          {actionText}.
+        </p>
+
+        <div className="flex items-center justify-center gap-2 mb-10 relative z-10">
+           <span className="px-3.5 py-1.5 bg-gray-50 border border-gray-200/75 rounded-full text-[11px] font-sans font-bold text-gray-500 tracking-wider uppercase flex items-center gap-1.5 shadow-sm">
+             <Shield size={14} strokeWidth={2.5} className="text-[#1A863A]" />
+             Uses FaceID / TouchID — No PIN Required
+           </span>
+        </div>
+        
+        {auth.error && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start text-left gap-3 relative z-10">
+            <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+            <p className="text-sm font-sans text-red-800 leading-relaxed font-medium">{auth.error}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 relative z-10">
+          <Button 
+            variant="primary" 
+            onClick={() => auth.signIn()} 
+            disabled={auth.isLoading}
+            className="w-full py-4 text-[15px] shadow-lg shadow-black/5"
+          >
+            {auth.isLoading ? (
+              <span className="flex items-center justify-center gap-2.5">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Waiting for Passkey...</span>
+              </span>
+            ) : (
+              'Sign In with Passkey'
+            )}
+          </Button>
+
+          <Button 
+            variant="secondary" 
+            onClick={() => auth.signUp()} 
+            disabled={auth.isLoading}
+            className="w-full py-4 text-[15px]"
+          >
+            Create New Wallet
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 const MyNamesView = ({ 
   isConnected, 
   connectWallet,
@@ -1112,7 +1237,7 @@ const MyNamesView = ({
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
   balance?: string;
-  navigateTo: (view: string) => void;
+  navigateTo: (view: string, arg?: string) => void;
 }) => {
   const { data: rawOwnedNames, refetch: refetchOwned } = useReadContract({
     address: ANS_ADDRESS,
@@ -1133,6 +1258,8 @@ const MyNamesView = ({
   });
 
   const [namesList, setNamesList] = useState<any[]>([]);
+  const [transferModal, setTransferModal] = useState<{isOpen: boolean; name: string; to: string; pending: boolean}>({isOpen: false, name: '', to: '', pending: false});
+  const [listingModal, setListingModal] = useState<{isOpen: boolean; name: string; price: string; pending: boolean}>({isOpen: false, name: '', price: '50', pending: false});
 
   useEffect(() => {
     let active = true;
@@ -1204,16 +1331,7 @@ const MyNamesView = ({
   }, [rawOwnedNames, primaryName, auth.address]);
 
   if (!isConnected || !auth.address) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-center px-6">
-        <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-8 text-gray-400 shadow-sm">
-          <Wallet size={32} strokeWidth={1.5} />
-        </div>
-        <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Sign In Required</h2>
-        <p className="text-gray-500 font-sans text-lg max-w-md mx-auto mb-10 leading-relaxed">Connect your wallet to manage your .arc identities, renew registrations, or list names for sale.</p>
-        <Button variant="primary" onClick={connectWallet} className="px-8 py-3.5 text-base">Connect Wallet</Button>
-      </div>
-    );
+    return <PasskeySignInCard auth={auth} actionText="Sign in or create a wallet instantly to manage your .arc identities, renew registrations, or list names for sale" />;
   }
 
   const usedCount = namesList.length;
@@ -1258,9 +1376,14 @@ const MyNamesView = ({
     }
   };
 
-  const handleTransfer = async (name: string) => {
-    const to = window.prompt(`Transfer ${name} to address or .arc name:`);
+  const handleTransfer = (name: string) => {
+    setTransferModal({ isOpen: true, name, to: '', pending: false });
+  };
+
+  const submitTransfer = async () => {
+    const { name, to } = transferModal;
     if (!to) return;
+    setTransferModal(prev => ({ ...prev, pending: true }));
     try {
       toast.info(`Transferring ${name}...`);
       await ans.transferName(name, to);
@@ -1274,29 +1397,41 @@ const MyNamesView = ({
       });
       toast.success(`${name} transferred to ${to}!`);
       refetchOwned();
+      setTransferModal(prev => ({ ...prev, isOpen: false }));
     } catch (e: any) {
       toast.error(e?.message || 'Transfer failed');
+      setTransferModal(prev => ({ ...prev, pending: false }));
     }
   };
 
-  const handleListForSale = async (name: string) => {
-    const priceStr = window.prompt(`Set listing price for ${name} (in USDC):`, '50');
-    if (!priceStr) return;
+  const handleListForSale = (name: string) => {
+    setListingModal({ isOpen: true, name, price: '50', pending: false });
+  };
+
+  const submitListing = async () => {
+    const { name, price } = listingModal;
+    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+      toast.error('Please enter a valid positive price');
+      return;
+    }
+    setListingModal(prev => ({ ...prev, pending: true }));
     try {
-      toast.info(`Listing ${name} for ${priceStr} USDC...`);
-      await ans.listForSale(name, priceStr);
+      toast.info(`Listing ${name} for ${price} USDC...`);
+      await ans.listForSale(name, price);
       addTrackedListing(name);
       recordActivity({
         name,
         action: 'Listed for Sale',
-        amount: `${priceStr} USDC`,
+        amount: `${price} USDC`,
         from: auth.address || 'Seller',
         timestamp: Date.now(),
       });
       toast.success(`${name} listed for sale!`);
       refetchOwned();
+      setListingModal(prev => ({ ...prev, isOpen: false }));
     } catch (e: any) {
       toast.error(e?.message || 'Listing failed');
+      setListingModal(prev => ({ ...prev, pending: false }));
     }
   };
 
@@ -1375,7 +1510,10 @@ const MyNamesView = ({
               </div>
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2">
+                  <h3 
+                    className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2 cursor-pointer hover:text-[#1A863A] transition-colors"
+                    onClick={() => navigateTo('profile', nameItem.name)}
+                  >
                     {nameItem.name}
                     {nameItem.isPrimary && (
                       <span className="text-[#0052FF] text-[9px] font-sans font-bold px-2 py-0.5 border border-[#0052FF]/20 bg-[#0052FF]/10 rounded-full uppercase tracking-wider flex items-center gap-1">
@@ -1449,11 +1587,16 @@ const MyNamesView = ({
                     <ArrowRightLeft size={16} className="text-gray-400"/> Transfer Name
                   </button>
                   {nameItem.listed ? (
-                    <button onClick={() => handleCancelListing(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-red-600 hover:bg-red-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                      <Tag size={16} className="text-red-500"/> Cancel Listing
-                    </button>
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                        <Tag size={16} className="text-gray-400"/> Update Price
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleCancelListing(nameItem.name); }} className="w-full text-left px-5 py-3 text-sm text-red-600 hover:bg-red-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                        <Tag size={16} className="text-red-500"/> Cancel Listing
+                      </button>
+                    </>
                   ) : (
-                    <button onClick={() => handleListForSale(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
+                    <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
                       <Tag size={16} className="text-gray-400"/> List for Sale
                     </button>
                   )}
@@ -1472,6 +1615,71 @@ const MyNamesView = ({
           </Card>
         )}
       </div>
+
+      {transferModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md bg-white shadow-2xl relative">
+            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">Transfer {transferModal.name}</h3>
+            <p className="text-sm text-gray-500 font-sans mb-6">Enter the recipient's wallet address or .arc name.</p>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Recipient</label>
+                <input
+                  type="text"
+                  value={transferModal.to}
+                  onChange={(e) => setTransferModal(prev => ({ ...prev, to: e.target.value }))}
+                  disabled={transferModal.pending}
+                  placeholder="0x... or name.arc"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF] transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="secondary" onClick={() => setTransferModal(prev => ({ ...prev, isOpen: false }))} disabled={transferModal.pending} className="px-5 py-2">
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={submitTransfer} disabled={!transferModal.to || transferModal.pending} className="px-5 py-2">
+                {transferModal.pending ? 'Transferring...' : 'Transfer Name'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {listingModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md bg-white shadow-2xl relative">
+            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">List {listingModal.name} for Sale</h3>
+            <p className="text-sm text-gray-500 font-sans mb-6">Set a price in USDC. A 2.5% protocol fee will be deducted from your proceeds upon sale.</p>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Price (USDC)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={listingModal.price}
+                    onChange={(e) => setListingModal(prev => ({ ...prev, price: e.target.value }))}
+                    disabled={listingModal.pending}
+                    placeholder="50"
+                    className="w-full p-3 pl-4 pr-16 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF] transition-all"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">USDC</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="secondary" onClick={() => setListingModal(prev => ({ ...prev, isOpen: false }))} disabled={listingModal.pending} className="px-5 py-2">
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={submitListing} disabled={!listingModal.price || listingModal.pending} className="px-5 py-2">
+                {listingModal.pending ? 'Listing...' : 'List for Sale'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
@@ -1517,16 +1725,7 @@ const SendView = ({
   });
 
   if (!isConnected) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-center px-6">
-        <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-8 text-gray-400 shadow-sm">
-          <Send size={32} strokeWidth={1.5} />
-        </div>
-        <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Sign In Required</h2>
-        <p className="text-gray-500 font-sans text-lg max-w-md mx-auto mb-10 leading-relaxed">Connect your wallet to send USDC payments seamlessly using .arc names.</p>
-        <Button variant="primary" onClick={connectWallet} className="px-8 py-3.5 text-base">Connect Wallet</Button>
-      </div>
-    );
+    return <PasskeySignInCard auth={auth} actionText="Sign in or create a wallet instantly to send USDC payments seamlessly using .arc names" />;
   }
 
   const isResolved = isArcName && (!!onchainResolved || recipient.length > 4);
@@ -1970,6 +2169,10 @@ const UserProfileView = ({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserProfile>(profile);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'portfolio' | 'activity'>('overview');
+  const [isAvatarSaving, setIsAvatarSaving] = useState(false);
+  
+  const { setAvatar } = useANS(auth.credential);
 
   useEffect(() => {
     const p = loadProfile(targetAddress);
@@ -1991,10 +2194,31 @@ const UserProfileView = ({
     saveProfile(formData);
     setProfile(formData);
     setIsEditing(false);
-    toast.success('Profile saved successfully!');
+    toast.success('Profile metadata saved locally!');
   };
 
-  const { data: rawOwnedNames } = useReadContract({
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be smaller than 2MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target?.result as string;
+      const updatedProfile = { ...profile, avatarUrl: base64Url };
+      saveProfile(updatedProfile);
+      setProfile(updatedProfile);
+      setFormData(updatedProfile);
+      toast.success("Avatar updated locally! Connect a Supabase backend to make it global.", { duration: 6000 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const { data: rawOwnedNames, isLoading: isNamesLoading } = useReadContract({
     address: ANS_ADDRESS,
     abi: ANS_ABI,
     functionName: 'getNamesByOwner',
@@ -2003,11 +2227,19 @@ const UserProfileView = ({
     query: { enabled: !!targetAddress },
   });
 
+  const { data: onchainAvatarUrl, refetch: refetchAvatar } = useReadContract({
+    address: ANS_ADDRESS,
+    abi: ANS_ABI,
+    functionName: 'avatars',
+    args: targetAddress ? [targetAddress as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: !!targetAddress },
+  });
+
   const ownedNames = useMemo(() => {
     const names = (rawOwnedNames as string[] | undefined) || [];
-    if (names.length > 0) return names.map(n => n.endsWith('.arc') ? n : `${n}.arc`);
-    return INITIAL_MOCK_NAMES.filter(m => m.owner.toLowerCase() === targetAddress.toLowerCase()).map(m => m.name);
-  }, [rawOwnedNames, targetAddress]);
+    return names.filter(n => n.length > 0).map(n => n.endsWith('.arc') ? n : `${n}.arc`);
+  }, [rawOwnedNames]);
 
   const { data: tierNum } = useReadContract({
     address: REPUTATION_ADDRESS,
@@ -2038,242 +2270,267 @@ const UserProfileView = ({
         disputes: Number(repRecord.disputeFlags),
       };
     }
-    return {
-      tier: 'New',
-      since: 'Recent',
-      sales: 0,
-      buys: 0,
-      tips: 0,
-      disputes: 0,
-    };
+    return { tier: 'New', since: 'Recent', sales: 0, buys: 0, tips: 0, disputes: 0 };
   }, [repRecord, tierNum]);
 
-  const avatarDisplay = profile.avatar?.trim() || (profile.displayName ? profile.displayName.slice(0, 2).toUpperCase() : targetAddress.slice(0, 4));
+  const avatarDisplay = profile.avatarUrl || profile.avatar?.trim() || (profile.displayName ? profile.displayName.slice(0, 2).toUpperCase() : targetAddress.slice(0, 4));
+
+  const bannerGradient = useMemo(() => {
+    const num = targetAddress ? parseInt(targetAddress.slice(2, 8), 16) : 0;
+    const hue1 = num % 360;
+    const hue2 = (hue1 + 40) % 360;
+    return `linear-gradient(135deg, hsl(${hue1}, 80%, 15%), hsl(${hue2}, 80%, 5%))`;
+  }, [targetAddress]);
 
   return (
-    <div className="max-w-4xl mx-auto pt-16 pb-32 px-6">
-      <Card noPadding className="overflow-hidden shadow-lg border-gray-200">
-        <div className="bg-white p-8 md:p-12">
-          
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-8 border-b border-gray-100">
-            <div className="flex items-start gap-6">
-              <div className="w-20 h-20 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-3xl shadow-sm shrink-0">
-                {avatarDisplay}
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h1 className="text-3xl font-serif font-bold text-gray-900">
-                    {profile.displayName || (isOwner ? 'Your Profile' : 'User Profile')}
-                  </h1>
-                  <ReputationBadge name={targetAddress} showDetails={true} />
-                </div>
-                <div className="flex items-center gap-2 text-gray-500 font-mono text-xs">
-                  <span>{targetAddress}</span>
-                  <button
-                    onClick={handleCopy}
-                    title="Copy full address"
-                    className="p-1 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                  >
-                    {copied ? <Check size={13} className="text-[#1A863A]" /> : <Copy size={13} />}
-                  </button>
-                </div>
-              </div>
+    <div className="w-full min-h-screen bg-[#FAFAFA] text-gray-900 -mt-16 pt-16 font-sans">
+      {/* Banner */}
+      <div className="w-full h-48 md:h-64 relative group border-b border-gray-200" style={{ background: bannerGradient }}>
+        {isOwner && (
+          <button className="absolute top-4 right-4 bg-black/40 hover:bg-black/60 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-2 border border-gray-200 backdrop-blur-md">
+            <Camera size={14} /> Edit Banner
+          </button>
+        )}
+      </div>
+
+      <div className="max-w-[1400px] mx-auto px-6 pb-32">
+        {/* Profile Header */}
+        <div className="relative -mt-16 md:-mt-20 mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="flex flex-col gap-4 w-full md:w-auto z-10">
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white bg-gray-100 flex items-center justify-center text-gray-900 font-serif font-bold text-4xl shadow-2xl overflow-hidden shrink-0 relative group">
+              {onchainAvatarUrl || profile.avatarUrl ? (
+                <img src={(onchainAvatarUrl as string) || profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                avatarDisplay
+              )}
+              {isOwner && (
+                <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity cursor-pointer text-white">
+                  <Camera size={24} className="mb-1" />
+                  <span className="text-[10px] font-bold">Upload PFP</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                </label>
+              )}
             </div>
 
-            {isOwner && !isEditing && (
-              <Button
-                variant="secondary"
-                onClick={() => setIsEditing(true)}
-                className="text-xs px-4 py-2 self-start flex items-center gap-1.5"
-              >
-                <Edit3 size={14} /> Edit Profile
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                {profile.displayName || (isOwner ? 'Your Profile' : 'Unnamed User')}
+                <ReputationBadge name={targetAddress} showDetails={true} />
+              </h1>
+              <div className="flex items-center gap-2 text-gray-500 font-mono text-sm mt-2">
+                <span>{targetAddress.slice(0, 6)}...{targetAddress.slice(-4)}</span>
+                <button onClick={handleCopy} title="Copy full address" className="p-1 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
+                  {copied ? <Check size={14} className="text-[#1A863A]" /> : <Copy size={14} />}
+                </button>
+                <span className="text-gray-600 mx-1">|</span>
+                <span className="font-sans text-xs">Joined {repStats.since}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0 z-10">
+            {isOwner && (
+              <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="text-sm bg-white border-gray-200 text-gray-900 hover:bg-gray-100 hover:border-gray-300">
+                <Edit3 size={16} className="mr-2" /> Edit Profile
               </Button>
             )}
+            <Button variant="secondary" onClick={handleCopy} className="text-sm bg-white border-gray-200 text-gray-900 hover:bg-gray-100 hover:border-gray-300">
+               <Share size={16} className="mr-2" /> Share
+            </Button>
           </div>
-
-          {isOwner && isEditing ? (
-            <form onSubmit={handleSave} className="py-8 space-y-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h3 className="font-serif font-bold text-xl text-gray-900">Edit Profile</h3>
-                <span className="text-xs text-gray-400 font-sans">Off-chain identity metadata</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
-                    Display Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.displayName || ''}
-                    onChange={(e) => setFormData(p => ({ ...p, displayName: e.target.value }))}
-                    placeholder="e.g. Alice Nakamoto"
-                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
-                    placeholder="alice@example.com"
-                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500">
-                    Bio
-                  </label>
-                  <span className="text-xs font-mono text-gray-400">
-                    {(formData.bio?.length || 0)}/160
-                  </span>
-                </div>
-                <textarea
-                  maxLength={160}
-                  rows={3}
-                  value={formData.bio || ''}
-                  onChange={(e) => setFormData(p => ({ ...p, bio: e.target.value }))}
-                  placeholder="Tell the community about yourself (max 160 chars)..."
-                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
-                    Twitter Handle
-                  </label>
-                  <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-gray-50 focus-within:border-gray-400">
-                    <span className="px-3.5 py-3 text-gray-400 text-sm font-mono flex items-center bg-gray-100 border-r border-gray-200">@</span>
-                    <input
-                      type="text"
-                      value={formData.twitter || ''}
-                      onChange={(e) => setFormData(p => ({ ...p, twitter: e.target.value.replace(/^@/, '') }))}
-                      placeholder="handle"
-                      className="w-full bg-transparent px-3 py-2 text-sm text-gray-900 focus:outline-none font-sans"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">
-                    Website URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.website || ''}
-                    onChange={(e) => setFormData(p => ({ ...p, website: e.target.value }))}
-                    placeholder="https://example.com"
-                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button variant="primary" type="submit" className="text-sm px-6">
-                  Save Profile
-                </Button>
-                <Button variant="secondary" type="button" onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6">
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="py-6 space-y-4">
-              {profile.bio ? (
-                <p className="text-gray-700 font-sans text-base leading-relaxed max-w-2xl">{profile.bio}</p>
-              ) : (
-                <p className="text-gray-400 font-sans text-sm italic">No bio provided yet.</p>
-              )}
-
-              <div className="flex flex-wrap items-center gap-5 text-sm font-sans text-gray-500 pt-2">
-                {profile.email && (
-                  <span className="flex items-center gap-1.5 text-gray-600">
-                    <Mail size={14} className="text-gray-400" /> {profile.email}
-                  </span>
-                )}
-                {profile.twitter && (
-                  <a
-                    href={`https://twitter.com/${profile.twitter}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-blue-600 hover:underline font-medium"
-                  >
-                    <span>@{profile.twitter}</span>
-                  </a>
-                )}
-                {profile.website && (
-                  <a
-                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-[#1A863A] hover:underline font-medium"
-                  >
-                    <ArrowUpRight size={14} /> {profile.website.replace(/^https?:\/\//, '')}
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="pt-8 border-t border-gray-100">
-            <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-400 mb-4">
-              Registered Names ({ownedNames.length})
-            </h3>
-            <div className="flex flex-wrap gap-2.5">
-              {ownedNames.map(nameItem => (
-                <button
-                  key={nameItem}
-                  onClick={() => navigateTo('profile', nameItem)}
-                  className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-900 border border-gray-200 rounded-xl font-mono text-xs font-semibold transition-colors flex items-center gap-2 group"
-                >
-                  <span>{nameItem}</span>
-                  <ArrowRightIcon size={12} className="text-gray-400 group-hover:text-gray-700 transition-colors" />
-                </button>
-              ))}
-              {ownedNames.length === 0 && (
-                <p className="text-sm font-sans text-gray-400">No registered .arc names for this wallet.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="pt-8 mt-8 border-t border-gray-100">
-            <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-400 mb-4">
-              Reputation Stats
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
-                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Member Since</p>
-                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.since}</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
-                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Sales</p>
-                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.sales}</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
-                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Purchases</p>
-                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.buys}</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
-                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Tips / Gifts</p>
-                <p className="text-base font-mono font-bold text-gray-900 mt-1">{repStats.tips}</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
-                <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Disputes</p>
-                <p className={`text-base font-mono font-bold mt-1 ${repStats.disputes > 0 ? 'text-red-600' : 'text-[#1A863A]'}`}>{repStats.disputes}</p>
-              </div>
-            </div>
-          </div>
-
         </div>
-      </Card>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-8 border-b border-gray-200 mb-8 overflow-x-auto no-scrollbar">
+          {(['overview', 'portfolio', 'activity'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-4 text-sm font-sans font-bold capitalize whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-white text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+            >
+              {tab === 'portfolio' ? `Portfolio (${ownedNames.length})` : tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-8">
+               {isEditing && isOwner ? (
+                 <form onSubmit={handleSave} className="bg-white border border-gray-200 rounded-xl p-8 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-serif font-bold text-xl text-gray-900">Edit Profile</h3>
+                      <span className="text-xs text-gray-500 font-sans">Local metadata</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Display Name</label>
+                        <input type="text" value={formData.displayName || ''} onChange={(e) => setFormData(p => ({ ...p, displayName: e.target.value }))} placeholder="e.g. Alice Nakamoto" className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
+                        <input type="email" value={formData.email || ''} onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="alice@example.com" className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500">Bio</label>
+                        <span className="text-xs font-mono text-gray-500">{(formData.bio?.length || 0)}/160</span>
+                      </div>
+                      <textarea maxLength={160} rows={3} value={formData.bio || ''} onChange={(e) => setFormData(p => ({ ...p, bio: e.target.value }))} placeholder="Tell the community about yourself (max 160 chars)..." className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm resize-none" />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Twitter Handle</label>
+                        <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-gray-50 focus-within:border-gray-400">
+                          <span className="px-3.5 py-3 text-gray-500 text-sm font-mono flex items-center bg-gray-50 border-r border-gray-200">@</span>
+                          <input type="text" value={formData.twitter || ''} onChange={(e) => setFormData(p => ({ ...p, twitter: e.target.value.replace(/^@/, '') }))} placeholder="handle" className="w-full bg-transparent px-3 py-2 text-sm text-gray-900 focus:outline-none font-sans" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Website URL</label>
+                        <input type="url" value={formData.website || ''} onChange={(e) => setFormData(p => ({ ...p, website: e.target.value }))} placeholder="https://example.com" className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm" />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <Button variant="primary" type="submit" className="text-sm px-6 bg-gray-900 text-white border-none hover:bg-gray-800">Save Profile</Button>
+                      <Button variant="secondary" type="button" onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6 bg-transparent border-gray-200 text-gray-900 hover:bg-white">Cancel</Button>
+                    </div>
+                 </form>
+               ) : (
+                 <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><Info size={14} /> About</h3>
+                    {profile.bio ? (
+                      <p className="text-gray-700 font-sans text-base leading-relaxed">{profile.bio}</p>
+                    ) : (
+                      <p className="text-gray-500 font-sans text-sm italic">No bio provided yet.</p>
+                    )}
+                    
+                    <div className="flex flex-wrap items-center gap-6 text-sm font-sans text-gray-500 pt-6 mt-6 border-t border-gray-200">
+                      {profile.email && (
+                        <span className="flex items-center gap-1.5 text-gray-600">
+                          <Mail size={16} className="text-gray-500" /> {profile.email}
+                        </span>
+                      )}
+                      {profile.twitter && (
+                        <a href={`https://twitter.com/${profile.twitter}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-400 hover:underline font-medium">
+                          <span>@{profile.twitter}</span>
+                        </a>
+                      )}
+                      {profile.website && (
+                        <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#2DD4BF] hover:underline font-medium">
+                          <ArrowUpRight size={16} /> {profile.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      )}
+                    </div>
+                 </div>
+               )}
+            </div>
+            
+            <div className="space-y-6">
+               <div className="bg-white border border-gray-200 rounded-xl p-6">
+                 <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-500 mb-4">Reputation Stats</h3>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                     <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Member Since</p>
+                     <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.since}</p>
+                   </div>
+                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                     <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Tier</p>
+                     <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.tier}</p>
+                   </div>
+                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                     <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Trades</p>
+                     <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.sales + repStats.buys}</p>
+                   </div>
+                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                     <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Tips / Gifts</p>
+                     <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.tips}</p>
+                   </div>
+                 </div>
+                 {repStats.disputes > 0 && (
+                   <div className="mt-4 bg-red-900/20 border border-red-500/20 rounded-lg p-3 flex items-center gap-3">
+                     <AlertCircle size={16} className="text-red-400" />
+                     <p className="text-xs text-red-400 font-medium">This account has {repStats.disputes} active dispute flags.</p>
+                   </div>
+                 )}
+               </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'portfolio' && (
+           <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-8">
+              <div className="flex flex-wrap gap-4">
+                {isNamesLoading ? (
+                  <div className="flex items-center gap-2 text-sm font-sans text-gray-500">
+                    <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                    Loading on-chain portfolio...
+                  </div>
+                ) : ownedNames.length > 0 ? (
+                  ownedNames.map(nameItem => (
+                    <button
+                      key={nameItem}
+                      onClick={() => navigateTo('profile', nameItem)}
+                      className="px-5 py-3 bg-gray-50 hover:bg-gray-100 text-gray-900 border border-gray-200 rounded-xl font-mono text-sm font-semibold transition-colors flex items-center gap-3 group"
+                    >
+                      <span>{nameItem}</span>
+                      <ArrowRightIcon size={14} className="text-gray-500 group-hover:text-[#1A863A] transition-colors" />
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm font-sans text-gray-500 w-full text-center py-12">No registered .arc names for this wallet.</p>
+                )}
+              </div>
+           </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-8">
+            {(() => {
+              const userActs = getUserActivities(targetAddress);
+              if (userActs.length === 0) {
+                return (
+                  <div className="text-center py-12">
+                    <History size={32} className="mx-auto text-gray-600 mb-3" />
+                    <p className="text-gray-500 text-sm">No activity recorded locally for this user yet.</p>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-4">
+                  {userActs.map((tx: any) => (
+                    <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 border-b border-gray-200 last:border-0 gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 shrink-0">
+                          {tx.action.includes('Transferred') || tx.action.includes('Gifted') ? <Gift size={16} className="text-purple-400" /> : <History size={16} />}
+                        </div>
+                        <div>
+                          <p className="text-gray-900 font-sans font-bold text-sm">{tx.action}</p>
+                          <p className="text-gray-500 font-mono text-xs mt-0.5">
+                            {tx.name}
+                            {tx.note && <span className="text-gray-500 font-sans italic ml-2">"{tx.note}"</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="sm:text-right">
+                        <p className="text-gray-900 font-mono font-bold text-sm">{tx.amount}</p>
+                        <p className="text-gray-500 font-sans text-[10px] mt-0.5">{formatRelativeTime(tx.timestamp)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };
@@ -2285,8 +2542,24 @@ export default function App() {
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isMobileWalletOpen, setIsMobileWalletOpen] = useState(false);
 
+
   const auth = usePasskeyAuth();
   const ans = useANS(auth.credential);
+
+  useEffect(() => {
+    trackEvent({
+      eventType: currentView === 'marketplace' ? 'marketplace_viewed' : 'page_viewed',
+      walletAddress: auth.address ? auth.address : undefined,
+      metadata: { view: currentView, profileTarget }
+    });
+  }, [currentView, profileTarget, auth.address]);
+
+  useEffect(() => {
+    if (auth.isConnected && auth.address) {
+      trackEvent({ eventType: 'wallet_connected', walletAddress: auth.address });
+    }
+  }, [auth.isConnected, auth.address]);
+
 
   const { data: usdcBalanceRaw, isLoading: isBalanceLoading } = useReadContract({
     address: USDC_ADDRESS,
@@ -2361,14 +2634,39 @@ export default function App() {
     query: { enabled: !!auth.address },
   });
 
+  const { data: rawAppOwnedNames } = useReadContract({
+    address: ANS_ADDRESS,
+    abi: ANS_ABI,
+    functionName: 'getNamesByOwner',
+    args: auth.address ? [auth.address as Address] : undefined,
+    chainId: arcTestnet.id,
+    query: { enabled: !!auth.address },
+  });
+
   useEffect(() => {
     if (auth.address) {
       const stored = getUserPrimaryName(auth.address);
+      const appOwned = (rawAppOwnedNames as string[] || []).map(n => n.endsWith('.arc') ? n : `${n}.arc`);
+      
+      let validatedStored = null;
       if (stored) {
-        setCurrentPrimaryName(stored);
+        // Only use the local stored primary name if we can confirm the user actually owns it
+        // Or if the names are still loading, tentatively use it to avoid flashing
+        if (appOwned.includes(stored) || !rawAppOwnedNames) {
+          validatedStored = stored;
+        } else if (rawAppOwnedNames && !appOwned.includes(stored)) {
+          // If we loaded names and it's not there, clear it from local storage
+          localStorage.removeItem(`ans_primary_${auth.address}`);
+        }
+      }
+
+      if (validatedStored) {
+        setCurrentPrimaryName(validatedStored);
       } else if (onchainPrimary && onchainPrimary.length > 0) {
         const full = onchainPrimary.endsWith('.arc') ? onchainPrimary : `${onchainPrimary}.arc`;
         setCurrentPrimaryName(full);
+      } else {
+        setCurrentPrimaryName(null);
       }
     } else {
       setCurrentPrimaryName(null);
@@ -2525,18 +2823,28 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <Button 
-                variant="primary"
-                onClick={() => auth.signIn()}
-                className="font-mono text-sm h-10 px-6"
-                disabled={auth.isLoading}
-              >
-                {auth.isLoading ? (
-                  <span className="flex items-center gap-2">Connecting...</span>
-                ) : (
-                  <span className="flex items-center gap-2">Sign In</span>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="secondary"
+                  onClick={() => auth.signUp()}
+                  className="font-mono text-sm h-10 px-4 hidden sm:flex"
+                  disabled={auth.isLoading}
+                >
+                  Create Wallet
+                </Button>
+                <Button 
+                  variant="primary"
+                  onClick={() => auth.signIn()}
+                  className="font-mono text-sm h-10 px-6"
+                  disabled={auth.isLoading}
+                >
+                  {auth.isLoading ? (
+                    <span className="flex items-center gap-2">Connecting...</span>
+                  ) : (
+                    <span className="flex items-center gap-2">Sign In</span>
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </header>
@@ -2545,39 +2853,42 @@ export default function App() {
       <main className="flex-1 w-full relative">
         {currentView === 'home' && <HomeView navigateTo={navigateTo} navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
         {currentView === 'names' && <NamesAppView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
-        {currentView === 'marketplace' && <MarketplaceView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} navigateTo={navigateTo} />}
+        {currentView === 'marketplace' && <MarketplaceView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} navigateTo={navigateTo} handleListForSale={(name) => navigateTo('listForSale', name)} />}
         {currentView === 'mynames' && <MyNamesView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} navigateTo={navigateTo} />}
         {currentView === 'send' && <SendView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} defaultRecipient={sendRecipientTarget} />}
         {currentView === 'profile' && profileTarget && <NameProfileView name={profileTarget} navigateTo={navigateTo} />}
         {currentView === 'userprofile' && userProfileTarget && <UserProfileView targetAddress={userProfileTarget} auth={auth} navigateTo={navigateTo} />}
       </main>
 
-      <footer className="bg-white border-t border-gray-200 py-16 px-6 pb-28 md:pb-16 z-10 relative">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-10">
-          <div>
-            <div className="text-gray-900 font-serif font-bold text-2xl flex items-center gap-2 mb-3">
-              <div className="text-[#1A863A]">&lt;&gt;</div>
-              ANS
+      {currentView === 'home' && (
+        <footer className="bg-white border-t border-gray-200 py-16 px-6 pb-28 md:pb-16 z-10 relative">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-10">
+            <div>
+              <div className="text-gray-900 font-serif font-bold text-2xl flex items-center gap-2 mb-3">
+                <div className="text-[#1A863A]">&lt;&gt;</div>
+                ANS
+              </div>
+              <p className="text-gray-500 text-sm font-sans font-medium">Arc Name Service</p>
             </div>
-            <p className="text-gray-500 text-sm font-sans font-medium">Arc Name Service</p>
+            <div className="flex gap-16 md:gap-24">
+              <div className="flex flex-col gap-4 text-sm font-sans">
+                <span className="text-gray-900 mb-1 font-serif font-bold text-base">Navigation</span>
+                <button onClick={() => navigateTo('home')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Home</button>
+                <button onClick={() => navigateTo('names')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Names</button>
+                <button onClick={() => navigateTo('marketplace')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Marketplace</button>
+                <button onClick={() => navigateTo('mynames')} className="text-gray-500 hover:text-gray-900 text-left font-medium">My Names</button>
+              </div>
+              <div className="flex flex-col gap-4 text-sm font-sans">
+                <span className="text-gray-900 mb-1 font-serif font-bold text-base">Technical</span>
+                <a href="https://www.arc.io/network" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">Arc Network</a>
+                <a href="https://docs.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">Documentation</a>
+                <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">GitHub</a>
+                <a href="https://explorer.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">Arc Explorer</a>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-16 md:gap-24">
-            <div className="flex flex-col gap-4 text-sm font-sans">
-              <span className="text-gray-900 mb-1 font-serif font-bold text-base">Navigation</span>
-              <button onClick={() => navigateTo('home')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Home</button>
-              <button onClick={() => navigateTo('names')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Names</button>
-              <button onClick={() => navigateTo('marketplace')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Marketplace</button>
-              <button onClick={() => navigateTo('mynames')} className="text-gray-500 hover:text-gray-900 text-left font-medium">My Names</button>
-            </div>
-            <div className="flex flex-col gap-4 text-sm font-sans">
-              <span className="text-gray-900 mb-1 font-serif font-bold text-base">Technical</span>
-              <a href="#" className="text-gray-500 hover:text-gray-900 font-medium">Arc Network</a>
-              <a href="#" className="text-gray-500 hover:text-gray-900 font-medium">Documentation</a>
-              <a href="#" className="text-gray-500 hover:text-gray-900 font-medium">GitHub</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center pb-safe pt-2 z-50 px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">

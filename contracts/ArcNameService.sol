@@ -40,6 +40,9 @@ contract ArcNameService is ReentrancyGuard {
     // wallet => primary .arc name
     mapping(address => string) public primaryName;
 
+    // wallet => avatar URL
+    mapping(address => string) public avatars;
+
     address public immutable usdc;
     address public immutable reputation;
     address public owner;
@@ -91,6 +94,7 @@ contract ArcNameService is ReentrancyGuard {
     event NameListingCancelled(string name);
     event TipSent(string toName, address indexed from, address indexed to, uint256 amount, string note);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event AvatarSet(address indexed user, string url);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotNameOwner();
@@ -405,6 +409,11 @@ contract ArcNameService is ReentrancyGuard {
 
     function reverseLookup(address user) external view returns (string memory) {
         return primaryName[user];
+    }
+
+    function setAvatar(string calldata url) external {
+        avatars[msg.sender] = url;
+        emit AvatarSet(msg.sender, url);
     }
 
     function getNameRecord(string calldata name) external view returns (NameRecord memory) {

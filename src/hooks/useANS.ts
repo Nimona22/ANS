@@ -508,6 +508,34 @@ export function useANS(credential: P256Credential | null) {
     [ensureAccount]
   )
 
+  const setAvatar = useCallback(
+    async (url: string, onProgressCb?: (step: 'approving' | 'tipping' | 'done') => void): Promise<string> => {
+      const { account, bundler } = await ensureAccount()
+
+      const avatarData = encodeFunctionData({
+        abi: ANS_ABI,
+        functionName: 'setAvatar',
+        args: [url],
+      })
+
+      try {
+        onProgressCb?.('approving') // Using 'approving' generically for 'submitting'
+        const avatarHash = await bundler.sendUserOperation({
+          account,
+          calls: [{ to: ANS_ADDRESS, data: avatarData, value: 0n }],
+          paymaster: true,
+        })
+        const receipt = await bundler.waitForUserOperationReceipt({ hash: avatarHash })
+        onProgressCb?.('done')
+        const txHash = (receipt as any).receipt?.transactionHash || receipt.userOpHash
+        return txHash
+      } catch (err: any) {
+        throw err
+      }
+    },
+    [ensureAccount]
+  )
+
   return {
     register,
     giftName,
@@ -517,5 +545,7 @@ export function useANS(credential: P256Credential | null) {
     cancelListing,
     buyName,
     sendTip,
+    setAvatar,
   }
 }
+

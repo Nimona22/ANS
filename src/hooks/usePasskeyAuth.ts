@@ -11,6 +11,7 @@ export type AuthState = {
   isLoading: boolean
   error: string | null
   signIn: () => Promise<void>
+  signUp: () => Promise<void>
   signOut: () => void
 }
 
@@ -43,15 +44,27 @@ export function usePasskeyAuth(): AuthState {
   }, [credential])
 
   const signIn = async () => {
+    if (isLoading) return
     setIsLoading(true)
     setError(null)
     try {
       let cred: P256Credential
       try {
         cred = await loginPasskey()
-      } catch (loginErr) {
+      } catch (loginErr: any) {
+        // Stop if the user cancelled the native WebAuthn dialog
+        if (loginErr?.name === 'NotAllowedError' || loginErr?.message?.toLowerCase().includes('cancel') || loginErr?.message?.toLowerCase().includes('aborted')) {
+          throw new Error('Sign in was cancelled.')
+        }
         console.warn('Passkey login did not complete, attempting registration...', loginErr)
-        cred = await registerPasskey('ans-user-' + Date.now())
+        try {
+          cred = await registerPasskey('ans-user-' + Date.now())
+        } catch (regErr: any) {
+          if (regErr?.name === 'NotAllowedError' || regErr?.message?.toLowerCase().includes('cancel') || regErr?.message?.toLowerCase().includes('aborted')) {
+            throw new Error('Registration was cancelled.')
+          }
+          throw regErr
+        }
       }
       const account = await getSmartAccount(cred)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cred))
@@ -64,8 +77,30 @@ export function usePasskeyAuth(): AuthState {
         msg = 'WebAuthn domain mismatch: this key is registered for il3eocims6w6igedeo90s.preview.studio.arc.io'
       }
       setError(msg)
-      toast.error(msg)
       console.error('Sign in error:', e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const signUp = async () => {
+    if (isLoading) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      const cred = await registerPasskey('ans-user-' + Date.now())
+      const account = await getSmartAccount(cred)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cred))
+      setCredential(cred)
+      setAddress(account.address)
+      toast.success('New wallet created with Passkey!')
+    } catch (e: unknown) {
+      let msg = e instanceof Error ? e.message : 'Sign up failed'
+      if (e instanceof DOMException && e.name === 'NotAllowedError') {
+        msg = 'Registration was cancelled.'
+      }
+      setError(msg)
+      console.error('Sign up error:', e)
     } finally {
       setIsLoading(false)
     }
@@ -85,6 +120,7 @@ export function usePasskeyAuth(): AuthState {
     isLoading,
     error,
     signIn,
+    signUp,
     signOut,
   }
 }

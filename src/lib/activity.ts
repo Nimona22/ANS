@@ -322,3 +322,23 @@ export function getRealisticNameActivities(options: {
 
   return [];
 }
+
+/**
+ * Get activities for a specific user from global feed
+ */
+export function getUserActivities(address: string): NameActivityItem[] {
+  if (!address) return [];
+  try {
+    const globalRaw = localStorage.getItem('ans_global_activities');
+    if (globalRaw) {
+      const globalList: NameActivityItem[] = JSON.parse(globalRaw);
+      return globalList.filter(item => 
+        (item.from && item.from.toLowerCase() === address.toLowerCase()) || 
+        (item.to && item.to.toLowerCase() === address.toLowerCase())
+      );
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}

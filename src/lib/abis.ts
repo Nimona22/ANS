@@ -11,6 +11,8 @@ export const ANS_ABI = [
   { type: 'function', name: 'getNamesByOwner', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'string[]' }], stateMutability: 'view' },
   { type: 'function', name: 'resolve', inputs: [{ name: 'name', type: 'string' }], outputs: [{ type: 'address' }], stateMutability: 'view' },
   { type: 'function', name: 'reverseLookup', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'string' }], stateMutability: 'view' },
+  { type: 'function', name: 'avatars', inputs: [{ name: 'user', type: 'address' }], outputs: [{ type: 'string' }], stateMutability: 'view' },
+  { type: 'function', name: 'setAvatar', inputs: [{ name: 'url', type: 'string' }], outputs: [], stateMutability: 'nonpayable' },
   { type: 'function', name: 'register', inputs: [{ name: 'name', type: 'string' }, { name: 'durationMonths', type: 'uint8' }], outputs: [], stateMutability: 'nonpayable' },
   { type: 'function', name: 'giftName', inputs: [{ name: 'name', type: 'string' }, { name: 'durationMonths', type: 'uint8' }, { name: 'recipient', type: 'address' }], outputs: [], stateMutability: 'nonpayable' },
   { type: 'function', name: 'renew', inputs: [{ name: 'name', type: 'string' }, { name: 'durationMonths', type: 'uint8' }], outputs: [], stateMutability: 'nonpayable' },
