@@ -106,9 +106,10 @@ export async function fetchProfileGlobal(address: string): Promise<UserProfile |
   const key = address.toLowerCase();
 
   try {
+    // Select ONLY safe public profile columns; never request email or sensitive fields
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('wallet_address, display_name, bio, avatar_url, banner_url, twitter, website, email')
+      .select('wallet_address, display_name, bio, avatar_url, banner_url, twitter, website')
       .eq('wallet_address', key)
       .maybeSingle();
 
@@ -134,7 +135,8 @@ export async function fetchProfileGlobal(address: string): Promise<UserProfile |
         bannerUrl: data.banner_url ?? existingLocal.bannerUrl,
         twitter: data.twitter ?? existingLocal.twitter,
         website: data.website ?? existingLocal.website,
-        email: data.email ?? existingLocal.email,
+        // Public queries never return email; preserve existing local-only email for this wallet if present
+        email: existingLocal.email,
         avatar: existingLocal.avatar,
       };
 
@@ -150,7 +152,9 @@ export async function fetchProfileGlobal(address: string): Promise<UserProfile |
 }
 
 /**
- * Saves profile both locally and globally to Supabase
+ * Saves profile locally and handles remote synchronization safely.
+ * Direct unauthenticated client writes to Supabase user_profiles are disabled
+ * to prevent unauthorized spoofing of wallet addresses.
  */
 export async function saveProfileGlobal(
   profile: UserProfile
@@ -159,55 +163,20 @@ export async function saveProfileGlobal(
     return { success: false, error: 'Wallet address is required', globalSaved: false };
   }
 
-  // 1. Immediately save to localStorage and local state
+  // 1. Immediately save to localStorage and local state (memory cache + subscriber notifications)
   saveProfile(profile);
 
-  if (!isSupabaseConfigured || !supabase) {
-    return {
-      success: true,
-      globalSaved: false,
-      error: 'Supabase not configured. Saved locally only.',
-    };
-  }
-
-  const key = profile.address.toLowerCase();
-
-  try {
-    const payload = {
-      wallet_address: key,
-      display_name: profile.displayName || null,
-      bio: profile.bio || null,
-      avatar_url: profile.avatarUrl || null,
-      banner_url: profile.bannerUrl || null,
-      twitter: profile.twitter || null,
-      website: profile.website || null,
-      email: profile.email || null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase
-      .from('user_profiles')
-      .upsert(payload, { onConflict: 'wallet_address' });
-
-    if (error) {
-      if (error.code === 'PGRST205') {
-        const msg = 'Supabase table "user_profiles" is not created yet. Please execute supabase_setup.sql in Supabase SQL editor.';
-        console.warn(msg);
-        return { success: true, globalSaved: false, error: msg };
-      }
-      console.error('Supabase profile save error:', error);
-      return { success: false, globalSaved: false, error: error.message };
-    }
-
-    return { success: true, globalSaved: true };
-  } catch (err: any) {
-    console.error('Unexpected error saving global profile:', err);
-    return {
-      success: false,
-      globalSaved: false,
-      error: err?.message || 'Failed to sync with Supabase',
-    };
-  }
+  // 2. Direct client-side writes to Supabase user_profiles are disabled for security.
+  // In Supabase, unrestricted client-side inserts/upserts allow any anonymous client
+  // with the publishable key to overwrite any wallet's profile without cryptographic proof.
+  // Remote writes must be verified via a trusted server-side endpoint or Supabase Edge Function
+  // using smart account signature verification (ERC-1271/ERC-6492) and service-role writes.
+  // Until server verification is deployed and configured, unsafe writes remain disabled.
+  return {
+    success: true,
+    globalSaved: false,
+    error: 'Remote profile sync is disabled pending server-side wallet ownership verification. Changes saved locally.',
+  };
 }
 
 /**

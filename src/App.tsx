@@ -45,25 +45,17 @@ export { loadProfile, saveProfile, saveProfileGlobal, fetchProfileGlobal, compre
 
 
 const globalStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
-
   body {
-    background-color: #FAFAFA;
-    color: #111111;
-    font-family: 'Inter', sans-serif;
+    background-color: #FBFBFA;
+    color: #141413;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     margin: 0;
   }
   
-  .font-serif { font-family: 'PT Serif', serif; }
-  .font-mono { font-family: 'JetBrains Mono', monospace; }
-  .font-sans { font-family: 'Inter', sans-serif; }
-
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar { width: 8px; }
-  ::-webkit-scrollbar-track { background: #FAFAFA; }
-  ::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #CCCCCC; }
+  .font-serif { font-family: 'Newsreader', 'PT Serif', Georgia, serif; }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .font-sans { font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
 
   .hero-green { color: #1A863A; }
 `;
@@ -91,21 +83,22 @@ const INITIAL_MOCK_LISTINGS: any[] = [];
 
 const TIER_NAMES = ['New', 'Trusted', 'Verified', 'Elite'] as const;
 
-const Button = ({ children, variant = 'primary', className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' }) => {
+const Button = ({ children, variant = 'primary', className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'accent' | 'ghost' }) => {
   const hasPx = /(?:^|\s)px-/.test(className);
   const hasPy = /(?:^|\s)py-/.test(className);
   const hasTextSize = /(?:^|\s)text-(xs|sm|base|lg|xl|2xl)\b/.test(className);
 
-  const defaultPx = hasPx ? "" : "px-6";
+  const defaultPx = hasPx ? "" : "px-5";
   const defaultPy = hasPy ? "" : "py-2.5";
-  const defaultText = hasTextSize ? "" : "text-base";
+  const defaultText = hasTextSize ? "" : "text-sm";
 
-  const baseStyle = `font-sans font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A863A] focus-visible:ring-offset-2 active:scale-[0.98] ${defaultPx} ${defaultPy} ${defaultText}`;
+  const baseStyle = `font-sans font-medium rounded-lg transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A863A] focus-visible:ring-offset-2 active:scale-[0.98] select-none ${defaultPx} ${defaultPy} ${defaultText}`;
   
   const variants = {
-    primary: "bg-[#111111] text-white hover:bg-[#333333] shadow-sm border border-transparent disabled:bg-gray-200 disabled:text-gray-500",
-    secondary: "bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 hover:border-gray-300 shadow-sm disabled:border-gray-100 disabled:text-gray-400",
-    ghost: "bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:text-gray-400"
+    primary: "bg-[#141413] text-white hover:bg-[#282826] shadow-sm border border-black/10 disabled:bg-[#E5E5E2] disabled:text-[#8E8E89]",
+    secondary: "bg-white border border-[#E5E5E2] text-[#141413] hover:bg-[#F7F7F6] hover:border-[#D5D5D0] shadow-sm disabled:border-[#ECECE9] disabled:text-[#A0A09B]",
+    accent: "bg-[#1A863A] text-white hover:bg-[#147230] shadow-sm border border-transparent disabled:bg-[#DEF2E3] disabled:text-[#1A863A]/50",
+    ghost: "bg-transparent text-[#60605A] hover:text-[#141413] hover:bg-[#F2F2EF] disabled:text-[#A0A09B]"
   };
 
   return (
@@ -124,7 +117,7 @@ const Card = ({ children, className = '', noPadding = false, hoverable = false, 
 }) => (
   <div 
     onClick={onClick}
-    className={`border border-gray-200 bg-white rounded-2xl overflow-hidden ${hoverable ? 'hover:border-gray-300 hover:shadow-md transition-all duration-300 cursor-pointer' : 'shadow-sm'} ${noPadding ? '' : 'p-6'} ${className}`}
+    className={`border border-[#E5E5E2] bg-white rounded-xl overflow-hidden ${hoverable ? 'hover:border-[#D0D0CB] hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all duration-200 cursor-pointer' : 'shadow-[0_1px_2px_rgba(0,0,0,0.03)]'} ${noPadding ? '' : 'p-6'} ${className}`}
   >
     {children}
   </div>
@@ -177,37 +170,37 @@ const ReputationBadge = ({ name, showDetails = true }: { name: string; showDetai
   } : fallback;
   
   const colors: Record<string, string> = {
-    "New": "text-gray-600 bg-gray-100 border-gray-200",
-    "Trusted": "text-[#0052FF] bg-[#0052FF]/10 border-[#0052FF]/20",
-    "Verified": "text-[#1A863A] bg-[#1A863A]/10 border-[#1A863A]/20",
-    "Elite": "text-[#7000FF] bg-[#7000FF]/10 border-[#7000FF]/20"
+    "New": "text-[#60605A] bg-[#F7F7F6] border-[#E5E5E2]",
+    "Trusted": "text-[#2C2C2A] bg-[#F2F2EF] border-[#DCDCD8]",
+    "Verified": "text-[#1A863A] bg-[#F0F9F2] border-[#DCF2E2]",
+    "Elite": "text-[#0D5724] bg-[#DEF2E3] border-[#BCE5C6]"
   };
 
   return (
     <div className="relative inline-block">
       <button 
         onClick={(e) => { e.stopPropagation(); if (showDetails) setIsOpen(!isOpen); }}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-sans font-bold uppercase tracking-wider border transition-colors ${colors[rep.tier] || colors.New} ${!showDetails && 'cursor-default'}`}
+        className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-sans font-semibold border transition-all ${colors[rep.tier] || colors.New} ${!showDetails && 'cursor-default'}`}
       >
-        <Shield size={12} strokeWidth={2.5} />
+        <Shield size={11} strokeWidth={2.2} />
         {rep.tier}
       </button>
 
       {isOpen && showDetails && (
-        <div className="absolute z-50 top-full mt-2 left-0 w-64 bg-white border border-gray-200 rounded-xl p-4 shadow-xl text-sm font-sans" onClick={(e) => e.stopPropagation()}>
-          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-            <span className="font-serif font-bold text-gray-900">{name} Stats</span>
-            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-900"><X size={16} /></button>
+        <div className="absolute z-50 top-full mt-2 left-0 w-64 bg-white border border-[#E5E5E2] rounded-xl p-4 shadow-xl text-sm font-sans" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-[#F0F0ED]">
+            <span className="font-serif font-bold text-[#141413] text-sm">{name} Reputation</span>
+            <button onClick={() => setIsOpen(false)} className="text-[#8E8E89] hover:text-[#141413]"><X size={15} /></button>
           </div>
-          <div className="space-y-2 text-gray-500 text-xs">
-            <div className="flex justify-between"><span>Member Since</span><span className="text-gray-900 font-medium">{rep.since}</span></div>
-            <div className="flex justify-between"><span>Total Transactions</span><span className="text-gray-900 font-medium">{rep.txs}</span></div>
-            <div className="flex justify-between"><span>Names Bought</span><span className="text-gray-900 font-medium">{rep.buys}</span></div>
-            <div className="flex justify-between"><span>Names Sold</span><span className="text-gray-900 font-medium">{rep.sales}</span></div>
-            <div className="flex justify-between"><span>Tips Sent/Recv</span><span className="text-gray-900 font-medium">{rep.tips}</span></div>
-            <div className="flex justify-between pt-1 mt-1 border-t border-gray-100">
-              <span>Disputes</span>
-              <span className={rep.disputes > 0 ? "text-red-500 font-bold" : "text-[#1A863A] font-bold"}>{rep.disputes}</span>
+          <div className="space-y-2 text-[#60605A] text-xs">
+            <div className="flex justify-between"><span>Member Since</span><span className="text-[#141413] font-medium font-mono">{rep.since}</span></div>
+            <div className="flex justify-between"><span>Total Transactions</span><span className="text-[#141413] font-medium font-mono">{rep.txs}</span></div>
+            <div className="flex justify-between"><span>Names Bought</span><span className="text-[#141413] font-medium font-mono">{rep.buys}</span></div>
+            <div className="flex justify-between"><span>Names Sold</span><span className="text-[#141413] font-medium font-mono">{rep.sales}</span></div>
+            <div className="flex justify-between"><span>Tips Sent/Recv</span><span className="text-[#141413] font-medium font-mono">{rep.tips}</span></div>
+            <div className="flex justify-between pt-1 mt-1 border-t border-[#F0F0ED]">
+              <span>Dispute Flags</span>
+              <span className={rep.disputes > 0 ? "text-red-600 font-bold font-mono" : "text-[#1A863A] font-bold font-mono"}>{rep.disputes}</span>
             </div>
           </div>
         </div>
@@ -315,28 +308,28 @@ const InteractiveSearch = ({
   return (
     <div className={`w-full ${isHero ? 'max-w-2xl' : 'max-w-3xl'} mx-auto`}>
       <div className="relative mb-6">
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
-          <Search size={24} strokeWidth={1.5} />
+        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-[#8E8E89]">
+          <Search size={20} strokeWidth={2} />
         </div>
         <input 
           type="text" 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for a name"
+          placeholder="Search for an identity"
           autoFocus={autoFocus}
-          className={`w-full bg-white border border-gray-200 text-gray-900 font-sans font-medium py-6 pl-16 pr-24 rounded-2xl focus:outline-none focus:border-gray-400 focus:ring-4 focus:ring-gray-100 transition-all placeholder:text-gray-400 shadow-sm ${isHero ? 'text-xl' : 'text-2xl'}`}
+          className={`w-full bg-white border border-[#DCDCD8] text-[#141413] font-mono py-4 pl-14 pr-24 rounded-xl focus:outline-none focus:border-[#1A863A] focus:ring-2 focus:ring-[#1A863A]/10 transition-all placeholder:text-[#A0A09B] placeholder:font-sans shadow-sm ${isHero ? 'text-lg' : 'text-xl'}`}
           spellCheck="false"
         />
-        <div className={`absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 font-sans font-medium pointer-events-none ${isHero ? 'text-lg' : 'text-xl'}`}>
+        <div className={`absolute right-5 top-1/2 -translate-y-1/2 text-[#1A863A] font-mono font-semibold pointer-events-none ${isHero ? 'text-base' : 'text-lg'}`}>
           .arc
         </div>
       </div>
 
       <div className="min-h-[20px] text-left">
         {isSearching && (
-          <div className="text-center text-gray-500 font-sans text-sm flex items-center justify-center gap-2">
-            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-            Searching...
+          <div className="text-center text-[#60605A] font-mono text-xs flex items-center justify-center gap-2 py-4">
+            <div className="w-3.5 h-3.5 border-2 border-[#1A863A] border-t-transparent rounded-full animate-spin"></div>
+            Querying Arc namespace...
           </div>
         )}
         
@@ -345,14 +338,14 @@ const InteractiveSearch = ({
         )}
 
         {!isSearching && result?.type === 'taken' && (
-          <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-[#E5E5E2]">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="text-2xl font-serif font-bold text-gray-900">{result.data.name}</h3>
-                <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] uppercase tracking-wider font-sans font-bold rounded border border-gray-200">Registered</span>
+              <div className="flex items-center gap-3 mb-1.5">
+                <h3 className="text-2xl font-serif font-bold text-[#141413]">{result.data.name}</h3>
+                <span className="px-2 py-0.5 bg-[#F7F7F6] text-[#60605A] text-[10px] font-mono uppercase tracking-wider rounded border border-[#E5E5E2]">Registered</span>
               </div>
-              <p className="text-gray-500 font-sans text-sm">
-                Owner: <span className="font-mono text-gray-900">{result.data.owner}</span>
+              <p className="text-[#60605A] font-sans text-xs">
+                Owner: <span className="font-mono text-[#141413]">{result.data.owner}</span>
               </p>
             </div>
             <Button variant="secondary" onClick={() => navigateToProfile(result.data.name)}>
@@ -362,14 +355,14 @@ const InteractiveSearch = ({
         )}
 
         {!isSearching && result?.type === 'listed' && (
-          <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-blue-100 bg-blue-50/50">
+          <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-amber-200/80 bg-amber-50/30">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="text-2xl font-serif font-bold text-gray-900">{result.data.name}</h3>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] uppercase tracking-wider font-sans font-bold rounded border border-blue-200">Listed for Sale</span>
+              <div className="flex items-center gap-3 mb-1.5">
+                <h3 className="text-2xl font-serif font-bold text-[#141413]">{result.data.name}</h3>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono uppercase tracking-wider rounded border border-amber-200">Listed for Sale</span>
               </div>
-              <p className="text-gray-500 font-sans text-sm">
-                Asking Price: <span className="text-gray-900 font-mono font-medium">{result.data.price} USDC</span>
+              <p className="text-[#60605A] font-sans text-xs">
+                Asking Price: <span className="text-[#141413] font-mono font-bold">{result.data.price} USDC</span>
               </p>
             </div>
             <Button variant="primary" onClick={() => navigateToProfile(result.data.name)}>
@@ -489,87 +482,113 @@ const RegistrationProcess = ({
   }
 
   return (
-    <Card className="shadow-md border-gray-200">
-      <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
+    <Card className="border-[#E5E5E2] bg-white shadow-sm p-6 sm:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-[#E5E5E2] gap-4">
         <div>
-          <h2 className="text-3xl font-serif font-bold text-gray-900">{name}</h2>
-          <span className="text-[#1A863A] text-xs font-sans font-bold flex items-center gap-1.5 mt-2 uppercase tracking-wider">
-            <CheckCircle2 size={14} /> Available
+          <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
+            Namespace Record
+          </span>
+          <h2 className="text-3xl font-serif font-bold text-gray-900 tracking-tight">{name}</h2>
+          <span className="text-[#1A863A] text-xs font-mono font-semibold inline-flex items-center gap-1.5 mt-2 bg-[#1A863A]/10 border border-[#1A863A]/20 px-2.5 py-0.5 rounded-full">
+            <CheckCircle2 size={13} /> Unregistered / Available
           </span>
         </div>
-        <div className="text-right bg-gray-50 p-3 rounded-xl border border-gray-100">
-          <div className="text-2xl font-mono text-gray-900">{price} <span className="text-gray-500 text-sm font-sans">USDC</span></div>
+        <div className="text-left sm:text-right bg-[#FBFBFA] p-3.5 rounded-xl border border-[#E5E5E2]">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-0.5">Registration Fee</span>
+          <div className="text-2xl font-mono font-bold text-gray-900 tabular-nums">
+            {price} <span className="text-gray-500 text-xs font-mono font-normal">USDC</span>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 pt-6">
         <div>
-          <label className="block text-gray-500 font-sans text-[11px] font-bold uppercase tracking-wider mb-2">Registration Type</label>
-          <div className="flex bg-gray-50 border border-gray-200 rounded-xl p-1">
+          <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold mb-2">
+            Registration Mode
+          </label>
+          <div className="grid grid-cols-2 bg-[#F5F5F3] p-1 rounded-xl border border-[#E5E5E2]">
             <button 
-              className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${!isGift ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`py-2 text-xs font-mono font-semibold rounded-lg transition-all ${!isGift ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
               onClick={() => setIsGift(false)}
             >
-              For Myself
+              Self-Register
             </button>
             <button 
-              className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${isGift ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`py-2 text-xs font-mono font-semibold rounded-lg transition-all ${isGift ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
               onClick={() => setIsGift(true)}
             >
-              Gift to Address
+              Gift to Recipient
             </button>
           </div>
         </div>
 
         {isGift && (
           <div>
-            <label className="block text-gray-500 font-sans text-[11px] font-bold uppercase tracking-wider mb-2">Recipient</label>
+            <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold mb-2">
+              Recipient Address or Name
+            </label>
             <input 
               type="text" 
               value={giftTarget}
               onChange={(e) => setGiftTarget(e.target.value)}
-              placeholder="0x... or name.arc"
-              className="w-full bg-white border border-gray-200 text-gray-900 font-mono p-3.5 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 text-sm"
+              placeholder="0x... or alice.arc"
+              className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono p-3 rounded-lg focus:outline-none focus:border-gray-900 focus:bg-white text-sm transition-all"
             />
           </div>
         )}
 
         <div>
-          <label className="block text-gray-500 font-sans text-[11px] font-bold uppercase tracking-wider mb-2">Duration</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[3, 6, 9, 12].map(m => (
-              <button 
-                key={m}
-                onClick={() => setDuration(m)}
-                className={`py-3 rounded-xl border text-sm font-medium transition-colors ${duration === m ? 'border-gray-900 bg-gray-900 text-white shadow-sm' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}
-              >
-                {m} Months
-              </button>
-            ))}
+          <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold mb-2">
+            Registration Period
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[3, 6, 9, 12].map(m => {
+              const durPrice = getPrice(length, m);
+              const isSelected = duration === m;
+              return (
+                <button 
+                  key={m}
+                  onClick={() => setDuration(m)}
+                  className={`py-3 px-3 rounded-xl border text-left transition-all ${
+                    isSelected 
+                      ? 'border-gray-900 bg-gray-900 text-white shadow-sm' 
+                      : 'border-[#E5E5E2] text-gray-700 hover:border-gray-400 bg-white'
+                  }`}
+                >
+                  <div className={`text-xs font-mono font-semibold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                    {m} Months
+                  </div>
+                  <div className={`text-[11px] font-mono mt-0.5 tabular-nums ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                    {durPrice} USDC
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-sans">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-mono">
             {error}
           </div>
         )}
 
-        <div className="pt-4">
+        <div className="pt-2">
           <Button 
             variant="primary"
-            className="w-full py-4 text-base" 
+            className="w-full py-3.5 text-sm font-mono font-semibold" 
             onClick={handleRegister}
             disabled={isLoading || txStep !== 'idle' || (isGift && !giftTarget)}
           >
-            {isLoading && txStep === 'idle' && 'Processing...'}
-            {txStep === 'idle' && !isLoading && (isGift ? 'Approve USDC & Gift' : 'Approve USDC & Register')}
-            {txStep === 'approving' && 'Approving USDC...'}
-            {txStep === 'registering' && (isGift ? 'Gifting name...' : 'Registering name...')}
+            {isLoading && txStep === 'idle' && 'Initializing transaction...'}
+            {txStep === 'idle' && !isLoading && (isGift ? `Authorize ${price} USDC & Gift` : `Authorize ${price} USDC & Register`)}
+            {txStep === 'approving' && 'Approving USDC Settlement...'}
+            {txStep === 'registering' && (isGift ? 'Executing Gift Operation...' : 'Registering Arc Identity...')}
           </Button>
-          <p className="text-center text-xs text-gray-500 mt-4 font-sans flex items-center justify-center gap-1.5">
-            <Shield size={14} /> Atomic on-chain transaction
-          </p>
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 font-mono mt-3">
+            <Shield size={12} className="text-[#1A863A]" />
+            <span>Atomic settlement on Arc Testnet (ERC-4337 Passkey Smart Account)</span>
+          </div>
         </div>
       </div>
     </Card>
@@ -588,236 +607,276 @@ const HomeView = ({
   ans: ReturnType<typeof useANS>;
 }) => {
   return (
-    <div className="w-full bg-[#FAFAFA] relative overflow-hidden min-h-screen">
+    <div className="w-full bg-[#FBFBFA] relative overflow-hidden min-h-screen">
       
-      {/* HERO */}
-      <section className="relative px-6 pt-24 pb-32 md:pt-32 md:pb-40 max-w-7xl mx-auto z-10 text-center">
-        <div className="relative z-10 flex flex-col items-center">
-          <h1 className="text-6xl md:text-8xl font-serif text-gray-900 tracking-tight leading-[1.1] mb-8">
-            Naming <span className="hero-green font-bold">everything</span><br/>
-            on the internet
+      {/* PROTOCOL LEDGER HERO */}
+      <section className="relative px-6 pt-20 pb-24 md:pt-28 md:pb-32 max-w-6xl mx-auto z-10">
+        <div className="text-center max-w-4xl mx-auto mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-[#E5E5E2] rounded-full text-xs font-mono text-gray-700 shadow-sm mb-6">
+            <span className="w-2 h-2 rounded-full bg-[#1A863A] animate-pulse"></span>
+            <span>Available on Arc</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500 font-semibold">Chain ID 5042002</span>
+          </div>
+
+          <h1 className="text-5xl sm:text-7xl font-serif text-gray-900 tracking-tight leading-[1.08] mb-6">
+            The sovereign naming layer <br className="hidden sm:inline" />
+            for <span className="hero-green font-bold">Arc Network</span>.
           </h1>
           
-          <p className="text-lg md:text-xl text-gray-600 font-sans max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-            ANS is the open naming layer for Arc, making it simple to replace complex wallet addresses with human-readable names.
+          <p className="text-lg sm:text-xl text-gray-600 font-sans max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
+            Replace 42-character hexadecimal addresses with human-readable cryptographic identities. Guaranteed by atomic on-chain escrow, native USDC settlement, and protocol reputation.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button variant="primary" className="px-8 py-4 text-base w-full sm:w-auto" onClick={() => navigateTo('names')}>
-              Register Your Name
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button variant="primary" className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto" onClick={() => navigateTo('names')}>
+              Register Namespace Record
             </Button>
-            <Button variant="ghost" className="px-8 py-4 text-base w-full sm:w-auto text-[#1A863A] font-bold hover:bg-[#1A863A]/10 hover:text-[#1A863A]" onClick={() => document.getElementById('problem')?.scrollIntoView({behavior: 'smooth'})}>
-              Learn More
+            <Button variant="secondary" className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto" onClick={() => navigateTo('marketplace')}>
+              Browse Secondary Market
             </Button>
           </div>
-          
-          {/* How It Works Guide */}
-          <div className="mt-20 sm:mt-24 w-full max-w-5xl mx-auto text-left relative">
-            <Card className="p-8 sm:p-10 border-gray-200 bg-white/70 backdrop-blur-xl shadow-lg shadow-gray-200/50">
-              <div className="flex flex-col md:flex-row md:items-center gap-10 md:gap-14">
-                
-                <div className="md:w-1/4 shrink-0 text-center md:text-left">
-                  <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">How ANS works</h3>
-                  <p className="text-sm font-sans text-gray-500 leading-relaxed font-medium">
-                    A simpler way to identify and use names on Arc.
-                  </p>
-                </div>
+        </div>
 
-                <div className="hidden md:block w-px h-24 bg-gray-100 shrink-0"></div>
-
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-10 sm:gap-6 relative">
-                  
-                  {/* Connection Line for Desktop */}
-                  <div className="hidden sm:block absolute top-4 left-[10%] right-[10%] h-[1px] bg-gray-100 -z-10"></div>
-
-                  <div className="relative flex flex-col items-center text-center">
-                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-sans font-bold text-xs mb-4 shadow-sm">1</div>
-                    <h4 className="font-bold text-gray-900 text-[15px] mb-2">Find your name</h4>
-                    <p className="text-gray-500 text-[13px] leading-relaxed font-sans max-w-[200px]">
-                      Search for a memorable .arc name.
-                    </p>
-                  </div>
-                  
-                  <div className="relative flex flex-col items-center text-center">
-                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-sans font-bold text-xs mb-4 shadow-sm">2</div>
-                    <h4 className="font-bold text-gray-900 text-[15px] mb-2">Register your identity</h4>
-                    <p className="text-gray-500 text-[13px] leading-relaxed font-sans max-w-[200px]">
-                      Register your chosen name through the ANS registration flow.
-                    </p>
-                  </div>
-                  
-                  <div className="relative flex flex-col items-center text-center">
-                    <div className="w-8 h-8 rounded-full bg-[#1A863A]/10 border border-[#1A863A]/20 flex items-center justify-center text-[#1A863A] font-sans font-bold text-xs mb-4 shadow-sm">3</div>
-                    <h4 className="font-bold text-gray-900 text-[15px] mb-2">Use your name</h4>
-                    <p className="text-gray-500 text-[13px] leading-relaxed font-sans max-w-[200px]">
-                      Make recipients easier to identify when sending USDC on Arc.
-                    </p>
-                  </div>
-                  
-                </div>
-              </div>
-            </Card>
+        {/* PROTOCOL SPECIFICATION TICKER */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-5xl mx-auto mb-16">
+          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Standard</span>
+            <div className="text-sm font-mono font-bold text-gray-900">.arc TLD Registry</div>
+            <div className="text-[11px] font-sans text-gray-500 mt-0.5">Canonical Arc Namespace</div>
+          </div>
+          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Settlement Asset</span>
+            <div className="text-sm font-mono font-bold text-gray-900">Native USDC (6 Dec)</div>
+            <div className="text-[11px] font-sans text-gray-500 mt-0.5">0x3600...0000</div>
+          </div>
+          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Quota Enforcement</span>
+            <div className="text-sm font-mono font-bold text-gray-900">3 Names / Wallet</div>
+            <div className="text-[11px] font-sans text-gray-500 mt-0.5">Anti-Hoarding Cap</div>
+          </div>
+          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Account Security</span>
+            <div className="text-sm font-mono font-bold text-gray-900">ERC-4337 Passkeys</div>
+            <div className="text-[11px] font-sans text-gray-500 mt-0.5">Zero Seed Phrases</div>
           </div>
         </div>
-      </section>
 
-      {/* PROBLEM / EXPLANATION */}
-      <section id="problem" className="px-6 py-24 bg-white border-y border-gray-200 relative z-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-            <div>
-              <span className="text-[#1A863A] font-sans font-bold text-xs uppercase tracking-wider mb-2 block">The Problem</span>
-              <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-6 leading-tight">
-                Hex addresses are not meant for humans.
-              </h2>
-              <p className="text-gray-600 text-lg mb-8 leading-relaxed font-sans font-medium">
-                Sending crypto to a 42-character alphanumeric address is stressful, error-prone, and intimidating. One wrong character and your funds are lost permanently.
-              </p>
-              
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-1">
-                    <X size={14} strokeWidth={3} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-base">Unreadable Addresses</h4>
-                    <p className="text-gray-500 text-sm">Hard to verify, easy to spoof with clipboard malware.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-1">
-                    <X size={14} strokeWidth={3} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-base">High Cognitive Load</h4>
-                    <p className="text-gray-500 text-sm">Triple-checking characters on every single transaction.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 p-8 rounded-3xl border border-gray-200">
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm mb-4">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 font-sans">Without ANS</span>
-                <span className="font-mono text-gray-500 text-lg">0x7a82...91Fc</span>
-              </div>
-              <div className="flex justify-center my-2 text-gray-400">
-                <ArrowRightIcon className="rotate-90 md:rotate-0" size={20} />
-              </div>
-              <div className="bg-white p-6 rounded-2xl border-2 border-[#1A863A] shadow-md">
-                <span className="text-xs font-bold text-[#1A863A] uppercase tracking-wider block mb-2 font-sans">With ANS</span>
-                <span className="font-serif font-bold text-gray-900 text-2xl flex items-center gap-2">
-                  alex.arc <CheckCircle2 size={20} className="text-[#1A863A]" />
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CORE FEATURES */}
-      <section className="px-6 py-24 bg-[#FAFAFA] relative z-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#1A863A] font-sans font-bold text-xs uppercase tracking-wider mb-2 block">Built For Arc</span>
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">Everything you need from a name service</h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto font-sans">Native to Arc blockchain with low fees and passkey-powered security.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="bg-white">
-              <User className="text-[#1A863A] mb-4" size={28} />
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-3">Universal Identity</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                Replace 0x... addresses with a recognizable .arc name you own completely.
-              </p>
-              <div className="p-3 bg-gray-50 rounded-xl font-mono text-xs text-gray-600 border border-gray-100">
-                alex.arc &rarr; 0x7a...91Fc
-              </div>
-            </Card>
-
-            <Card className="bg-white">
-              <CreditCard className="text-[#1A863A] mb-4" size={28} />
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-3">Send by Name</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                Send USDC tips or payments directly to any name without copying raw hexadecimal addresses.
-              </p>
-              <div className="p-3 bg-gray-50 rounded-xl font-mono text-xs text-gray-600 border border-gray-100">
-                send 25 USDC &rarr; bob.arc
-              </div>
-            </Card>
-
-            <Card className="bg-white">
-              <Shield className="text-[#1A863A] mb-4" size={28} />
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-3">On-Chain Reputation</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                Every transaction, tip, and trade builds a verifiable trust score linked to your name.
-              </p>
-              <div className="p-3 bg-gray-50 rounded-xl font-mono text-xs text-gray-600 border border-gray-100 flex items-center justify-between">
-                <span>Score: Elite</span>
-                <span className="text-[#1A863A] font-bold">100% Trust</span>
-              </div>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* POLICY & RULES */}
-      <section className="px-6 py-24 bg-white border-y border-gray-200 relative z-10">
+        {/* PROTOCOL RESOLUTION DEMO */}
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-4">Fair Namespace Rules</h2>
-            <p className="text-gray-500 text-base max-w-xl mx-auto font-sans">Designed from the ground up to prevent squatting and maintain high utility.</p>
+          <Card className="border-[#E5E5E2] bg-white shadow-sm p-6 sm:p-10">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6">
+              
+              {/* RAW HEX */}
+              <div className="flex-1 bg-[#FBFBFA] border border-[#E5E5E2] p-5 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold">Raw Hexadecimal State</span>
+                  <span className="text-[10px] font-mono text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Unverified</span>
+                </div>
+                <div className="font-mono text-xs sm:text-sm text-gray-600 bg-white p-3 rounded-lg border border-[#E5E5E2] break-all select-all">
+                  0x7a82b489c09192fc34e18201bcf3928198f191fc
+                </div>
+                <p className="text-[11px] text-gray-500 font-sans mt-2">
+                  Prone to clipboard injection malware and human verification error.
+                </p>
+              </div>
+
+              {/* RESOLVER PIPELINE */}
+              <div className="flex flex-col items-center justify-center shrink-0 px-2">
+                <div className="hidden md:flex items-center gap-1.5 text-xs font-mono font-semibold text-[#1A863A] bg-[#1A863A]/10 border border-[#1A863A]/20 px-3 py-1.5 rounded-full mb-1">
+                  <span>ans.resolve()</span>
+                  <ArrowRightIcon size={13} />
+                </div>
+                <div className="md:hidden flex items-center justify-center py-1 text-[#1A863A]">
+                  <ArrowRightIcon className="rotate-90" size={20} />
+                </div>
+                <span className="text-[10px] font-mono text-gray-500">Atomic 1-Block</span>
+              </div>
+
+              {/* CANONICAL ANS IDENTITY */}
+              <div className="flex-1 bg-[#FBFBFA] border-2 border-[#1A863A] p-5 rounded-xl shadow-[0_2px_8px_rgba(26,134,58,0.08)]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-[#1A863A] font-bold">ANS Canonical Record</span>
+                  <span className="text-[10px] font-mono text-[#1A863A] bg-[#1A863A]/10 border border-[#1A863A]/30 px-2 py-0.5 rounded font-bold">Verified</span>
+                </div>
+                <div className="font-serif text-2xl font-bold text-gray-900 bg-white p-2.5 rounded-lg border border-[#E5E5E2] flex items-center justify-between">
+                  <span>alex.arc</span>
+                  <ReputationBadge name="alex.arc" showDetails={false} />
+                </div>
+                <p className="text-[11px] text-gray-600 font-sans mt-2">
+                  Human-readable, verifiable reputation score, and direct USDC transfer target.
+                </p>
+              </div>
+
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* PROTOCOL ARCHITECTURE PILLARS */}
+      <section className="px-6 py-20 bg-white border-y border-[#E5E5E2] relative z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-2">
+              Architecture & Capabilities
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 tracking-tight">
+              Constructed natively for Arc.
+            </h2>
+            <p className="text-gray-500 font-sans text-base mt-3">
+              Purpose-built smart contracts engineered for fast settlement, trustless delegation, and high-frequency payments.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="bg-gray-50 border-gray-200">
-              <Clock className="text-gray-400 mb-4" size={24} />
-              <h4 className="text-lg font-serif font-bold text-gray-900 mb-2">3 Wallet Cap</h4>
-              <p className="text-gray-500 text-sm mb-4 leading-relaxed">Each wallet is strictly limited to 3 active names at any time to prevent domain hoarding.</p>
-              <div className="font-mono text-xs text-gray-600 bg-white p-3 rounded-lg border border-gray-200 inline-flex items-center gap-2">
-                0x7a...91Fc <ArrowRightIcon size={12}/> <span className="text-[#1A863A]">3 names</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="border-[#E5E5E2] bg-[#FBFBFA] p-6 sm:p-8 flex flex-col">
+              <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center text-[#1A863A] mb-5 shadow-sm">
+                <User size={20} />
+              </div>
+              <h3 className="text-lg font-serif font-bold text-gray-900 mb-2">Universal Identity Resolution</h3>
+              <p className="text-gray-600 text-sm leading-relaxed mb-6 font-sans">
+                Bind an authentic .arc name to your Passkey Smart Account. Applications across Arc resolve your address in one function call.
+              </p>
+              <div className="mt-auto bg-white p-3 rounded-lg border border-[#E5E5E2] font-mono text-xs text-gray-700 flex items-center justify-between">
+                <span>alex.arc</span>
+                <span className="text-gray-400">→</span>
+                <span>0x7a82...91Fc</span>
               </div>
             </Card>
 
-            <Card className="bg-gray-50 border-gray-200">
-              <Gift className="text-gray-400 mb-4" size={24} />
-              <h4 className="text-lg font-serif font-bold text-gray-900 mb-2">Gift Mode</h4>
-              <p className="text-gray-500 text-sm mb-4 leading-relaxed">Register a name directly to a friend's address in a single transaction with no extra gas.</p>
-              <div className="font-mono text-xs text-gray-600 bg-white p-3 rounded-lg border border-gray-200 inline-flex items-center gap-2">
-                You <ArrowRightIcon size={12}/> alex.arc <ArrowRightIcon size={12}/> Friend
+            <Card className="border-[#E5E5E2] bg-[#FBFBFA] p-6 sm:p-8 flex flex-col">
+              <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center text-[#1A863A] mb-5 shadow-sm">
+                <CreditCard size={20} />
+              </div>
+              <h3 className="text-lg font-serif font-bold text-gray-900 mb-2">Native USDC Settlement</h3>
+              <p className="text-gray-600 text-sm leading-relaxed mb-6 font-sans">
+                Zero friction peer-to-peer payments and tips. Stream USDC directly to any .arc recipient with automatic on-chain receipt logging.
+              </p>
+              <div className="mt-auto bg-white p-3 rounded-lg border border-[#E5E5E2] font-mono text-xs text-gray-700 flex items-center justify-between">
+                <span>send 25 USDC</span>
+                <span className="text-gray-400">→</span>
+                <span className="text-[#1A863A] font-bold">bob.arc</span>
               </div>
             </Card>
 
-            <Card className="bg-gray-50 border-gray-200">
-              <ArrowRightLeft className="text-gray-400 mb-4" size={24} />
-              <h4 className="text-lg font-serif font-bold text-gray-900 mb-2">Transferable Ownership</h4>
-              <p className="text-gray-500 text-sm mb-4 leading-relaxed">You own the name. Transfer it securely to another wallet at any time without restrictions.</p>
-            </Card>
-
-            <Card className="bg-gray-50 border-gray-200">
-              <RefreshCw className="text-gray-400 mb-4" size={24} />
-              <h4 className="text-lg font-serif font-bold text-gray-900 mb-2">Renewable Names</h4>
-              <p className="text-gray-500 text-sm mb-4 leading-relaxed">Keep your identity active by renewing names before they expire directly from your dashboard.</p>
-            </Card>
-
-            <Card className="bg-gray-50 border-gray-200">
-              <Store className="text-gray-400 mb-4" size={24} />
-              <h4 className="text-lg font-serif font-bold text-gray-900 mb-2">Buy & Sell</h4>
-              <p className="text-gray-500 text-sm mb-4 leading-relaxed">Names have value. Buy premium names or list your own for sale on the built-in marketplace.</p>
+            <Card className="border-[#E5E5E2] bg-[#FBFBFA] p-6 sm:p-8 flex flex-col">
+              <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center text-[#1A863A] mb-5 shadow-sm">
+                <Shield size={20} />
+              </div>
+              <h3 className="text-lg font-serif font-bold text-gray-900 mb-2">On-Chain Reputation Registry</h3>
+              <p className="text-gray-600 text-sm leading-relaxed mb-6 font-sans">
+                Every trade, payment, and lease renewal updates ANSReputation.sol. Establish cryptographic trust verifiable by counter-parties.
+              </p>
+              <div className="mt-auto bg-white p-3 rounded-lg border border-[#E5E5E2] font-mono text-xs text-gray-700 flex items-center justify-between">
+                <span className="font-semibold text-gray-800">Tier: Elite</span>
+                <span className="text-[#1A863A] font-bold">100 / 100 Trust</span>
+              </div>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="px-6 py-32 bg-[#FAFAFA] text-center relative z-10">
-        <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-6 tracking-tight">Ready to find your name?</h2>
-        <p className="text-gray-500 font-sans text-lg mb-10 max-w-xl mx-auto">
-          Search for your .arc identity and launch the application.
-        </p>
-        <Button variant="primary" onClick={() => navigateTo('names')} className="mx-auto px-10 py-4 text-base">Launch App</Button>
+      {/* FAIR NAMESPACE PROTOCOL SPECIFICATIONS */}
+      <section className="px-6 py-20 bg-[#FBFBFA] relative z-10">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-2">
+              Protocol Governance & Fair Use
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 tracking-tight">
+              Fair Namespace Standards
+            </h2>
+            <p className="text-gray-500 font-sans text-base mt-3">
+              Guaranteed on-chain policies to prevent domain squatting and ensure utility for actual Arc ecosystem participants.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock size={16} className="text-[#1A863A]" />
+                <h4 className="font-serif font-bold text-gray-900 text-base">3-Name Wallet Quota</h4>
+              </div>
+              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
+                Smart contracts restrict every wallet to a maximum of 3 concurrent active registrations. Mass hoarding is impossible by protocol design.
+              </p>
+              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
+                <span>0x7a...91Fc</span>
+                <ArrowRightIcon size={12}/>
+                <span className="text-[#1A863A] font-bold">Max 3 .arc records</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center gap-2 mb-2">
+                <Gift size={16} className="text-[#1A863A]" />
+                <h4 className="font-serif font-bold text-gray-900 text-base">Atomic Gift Mode</h4>
+              </div>
+              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
+                Register a name directly for a friend's address in a single transaction. Title is assigned directly to the recipient without intermediate custody.
+              </p>
+              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
+                <span>You</span>
+                <ArrowRightIcon size={12}/>
+                <span>alex.arc</span>
+                <ArrowRightIcon size={12}/>
+                <span className="text-[#1A863A] font-bold">Friend's Wallet</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center gap-2 mb-2">
+                <Store size={16} className="text-[#1A863A]" />
+                <h4 className="font-serif font-bold text-gray-900 text-base">Trustless Escrow Marketplace</h4>
+              </div>
+              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
+                List names for sale with built-in atomic escrow. Buyers receive instant ownership while sellers receive USDC minus a standard 2.5% protocol fee.
+              </p>
+              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
+                <span>Seller Listing</span>
+                <ArrowRightIcon size={12}/>
+                <span>Atomic Escrow</span>
+                <ArrowRightIcon size={12}/>
+                <span className="text-[#1A863A] font-bold">USDC Payout</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw size={16} className="text-[#1A863A]" />
+                <h4 className="font-serif font-bold text-gray-900 text-base">Deterministic Expiry & Renewal</h4>
+              </div>
+              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
+                Lease terms available for 3, 6, 9, or 12 months. Names can be renewed at any time before expiration to maintain permanent identity continuity.
+              </p>
+              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
+                <span>3 / 6 / 9 / 12 Months</span>
+                <ArrowRightIcon size={12}/>
+                <span className="text-[#1A863A] font-bold">Instant Renewal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FINAL PROTOCOL LAUNCH CTA */}
+      <section className="px-6 py-24 bg-white border-t border-[#E5E5E2] text-center relative z-10">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 mb-4 tracking-tight">
+            Claim your .arc identity today
+          </h2>
+          <p className="text-gray-600 font-sans text-base mb-8 leading-relaxed">
+            Connect using your biometric Passkey and register your sovereign namespace on the Arc blockchain.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button variant="primary" onClick={() => navigateTo('names')} className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto">
+              Launch Namespace Registry
+            </Button>
+            <Button variant="secondary" onClick={() => navigateTo('marketplace')} className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto">
+              View Secondary Market
+            </Button>
+          </div>
+        </div>
       </section>
     </div>
   );
@@ -917,10 +976,10 @@ const MarketplaceSellerBadge = ({
   const { profile } = useUserProfile(sellerAddress);
   return (
     <div className="text-right">
-      <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Seller</p>
+      <p className="text-gray-400 text-[10px] font-mono uppercase tracking-wider font-semibold mb-1">Seller</p>
       <button 
         onClick={() => navigateTo('userprofile', sellerAddress)}
-        className="text-xs font-mono text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ml-auto"
+        className="text-xs font-mono text-gray-800 hover:text-gray-900 bg-[#F5F5F3] hover:bg-[#EAEAE7] border border-[#E5E5E2] px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ml-auto shadow-[0_1px_1px_rgba(0,0,0,0.02)]"
         title="View Seller Profile"
       >
         {profile.avatarUrl ? (
@@ -1084,19 +1143,22 @@ const MarketplaceView = ({
 
   return (
     <div className="max-w-7xl mx-auto pt-16 pb-32 px-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6 border-b border-gray-200 pb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6 border-b border-[#E5E5E2] pb-8">
         <div>
-          <h1 className="text-4xl font-serif font-bold text-gray-900 mb-3">Marketplace</h1>
-          <p className="text-gray-500 font-sans text-lg">Discover and collect verified .arc identities.</p>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
+            Secondary Namespace Ledger
+          </span>
+          <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">Marketplace</h1>
+          <p className="text-gray-500 font-sans text-base mt-1">Discover, verify, and acquire registered .arc identities via atomic escrow.</p>
         </div>
-        <div className="flex bg-gray-50 border border-gray-200 rounded-xl p-1">
+        <div className="flex bg-[#F5F5F3] border border-[#E5E5E2] rounded-xl p-1">
           {['all', '3', '4', '5+'].map(f => (
             <button 
               key={f}
-              className={`px-5 py-2 text-sm font-bold rounded-lg transition-colors ${filter === f ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`px-4 py-2 text-xs font-mono font-semibold rounded-lg transition-all ${filter === f ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
               onClick={() => setFilter(f)}
             >
-              {f === 'all' ? 'All Names' : `${f} Letters`}
+              {f === 'all' ? 'All Records' : `${f} Letters`}
             </button>
           ))}
         </div>
@@ -1104,23 +1166,23 @@ const MarketplaceView = ({
 
       {isLoading ? (
         <div className="text-center py-20 text-gray-400">
-          <RefreshCw size={28} className="animate-spin mx-auto mb-3 text-gray-300" />
-          <p className="font-sans text-sm">Checking on-chain active listings...</p>
+          <RefreshCw size={24} className="animate-spin mx-auto mb-3 text-gray-400" />
+          <p className="font-mono text-xs text-gray-500">Querying on-chain escrow listings on Arc Testnet...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
-          <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
-            <Store size={28} />
+        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-[#E5E5E2]">
+          <div className="w-14 h-14 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
+            <Store size={24} />
           </div>
-          <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">No Active Marketplace Listings</h3>
+          <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">No Active Marketplace Listings</h3>
           <p className="text-gray-500 font-sans text-sm max-w-md mx-auto mb-8 leading-relaxed">
-            There are currently no .arc names listed for sale on the secondary market. Anyone with an owned identity can list their name directly through the My Names dashboard.
+            There are currently no .arc names listed for sale on the secondary market. Anyone who owns an identity can list their name directly through the My Names dashboard.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Button variant="primary" onClick={() => navigateTo('mynames')} className="text-sm">
+            <Button variant="primary" onClick={() => navigateTo('mynames')} className="text-xs font-mono font-semibold px-5 py-2.5">
               List from My Names
             </Button>
-            <Button variant="secondary" onClick={() => navigateTo('names')} className="text-sm">
+            <Button variant="secondary" onClick={() => navigateTo('names')} className="text-xs font-mono font-semibold px-5 py-2.5">
               Register a Name
             </Button>
           </div>
@@ -1131,37 +1193,39 @@ const MarketplaceView = ({
             const isOwnListing = !!(auth.address && listing.seller.toLowerCase() === auth.address.toLowerCase());
 
             return (
-              <Card key={listing.name} className="flex flex-col">
-                <div className="flex justify-between items-start mb-10">
-                  <h3 className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#1A863A]" onClick={() => navigateToProfile(listing.name)}>
+              <Card key={listing.name} className="border-[#E5E5E2] bg-white shadow-sm flex flex-col p-6">
+                <div className="flex justify-between items-start mb-8">
+                  <h3 className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#1A863A] transition-colors tracking-tight" onClick={() => navigateToProfile(listing.name)}>
                     {listing.name}
                   </h3>
                   <ReputationBadge name={listing.name} showDetails={false} />
                 </div>
                 <div className="mb-8 flex justify-between items-end">
                   <div>
-                    <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Asking Price</p>
-                    <p className="text-2xl font-mono text-gray-900 font-bold">{listing.price} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
+                    <p className="text-gray-400 text-[10px] font-mono uppercase tracking-wider font-semibold mb-1">Asking Price</p>
+                    <p className="text-2xl font-mono text-gray-900 font-bold tabular-nums">
+                      {listing.price} <span className="text-xs font-mono text-gray-500 font-normal">USDC</span>
+                    </p>
                   </div>
                   <MarketplaceSellerBadge sellerAddress={listing.seller} navigateTo={navigateTo} />
                 </div>
                 
                 {isOwnListing ? (
-                  <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col xl:flex-row items-center justify-between gap-3">
-                    <span className="text-[11px] font-sans font-bold text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded border border-blue-200 whitespace-nowrap self-start xl:self-center">
+                  <div className="mt-auto pt-4 border-t border-[#E5E5E2] flex flex-col xl:flex-row items-center justify-between gap-3">
+                    <span className="text-[10px] font-mono font-semibold text-[#1A863A] bg-[#1A863A]/10 px-2.5 py-1 rounded border border-[#1A863A]/20 whitespace-nowrap self-start xl:self-center">
                       Your Listing
                     </span>
                     <div className="flex items-center gap-2 w-full xl:w-auto">
                       <Button 
                         variant="secondary" 
-                        className="text-xs py-1.5 px-3 flex-1 xl:flex-none justify-center"
+                        className="text-xs font-mono py-1.5 px-3 flex-1 xl:flex-none justify-center"
                         onClick={() => handleListForSale(listing.name)}
                       >
                         Update Price
                       </Button>
                       <Button 
                         variant="secondary" 
-                        className="text-xs py-1.5 px-3 text-red-600 hover:bg-red-50 hover:border-red-200 flex-1 xl:flex-none justify-center"
+                        className="text-xs font-mono py-1.5 px-3 text-red-600 hover:bg-red-50 hover:border-red-200 flex-1 xl:flex-none justify-center"
                         onClick={() => handleCancelListing(listing.name)}
                       >
                         Cancel
@@ -1169,46 +1233,47 @@ const MarketplaceView = ({
                     </div>
                   </div>
                 ) : selectedListing?.name === listing.name ? (
-                  <div className="mt-auto border-t border-gray-100 pt-5 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                  <div className="mt-auto border-t border-[#E5E5E2] pt-4 bg-[#FBFBFA] -mx-6 -mb-6 p-6 rounded-b-xl">
                     {txState === 'success' ? (
-                      <div className="text-center py-6 text-[#1A863A] font-sans font-bold text-sm flex flex-col items-center justify-center gap-3">
-                        <CheckCircle2 size={24} strokeWidth={2.5} /> Done! Purchase Complete
+                      <div className="text-center py-5 text-[#1A863A] font-mono font-bold text-xs flex flex-col items-center justify-center gap-2">
+                        <CheckCircle2 size={20} strokeWidth={2.5} />
+                        <span>Done! Purchase Complete</span>
                       </div>
                     ) : (
                       <>
-                        <div className="space-y-3 mb-6 text-xs font-mono text-gray-500">
+                        <div className="space-y-2.5 mb-5 text-xs font-mono text-gray-600">
                           <div className="flex justify-between">
-                            <span>Item Price</span>
-                            <span className="text-gray-900">{calculateFees(listing.price).price} USDC</span>
+                            <span className="text-gray-500">Asset Price</span>
+                            <span className="text-gray-900 font-medium tabular-nums">{calculateFees(listing.price).price} USDC</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Protocol Fee (2.5%)</span>
-                            <span className="text-gray-500 font-sans">{calculateFees(listing.price).fee} USDC (deducted from seller)</span>
+                            <span className="text-gray-500">Protocol Fee (2.5%)</span>
+                            <span className="text-gray-500 tabular-nums">{calculateFees(listing.price).fee} USDC</span>
                           </div>
-                          <div className="flex justify-between text-gray-900 pt-3 border-t border-gray-200 text-sm font-bold">
-                            <span>Total You Pay</span>
-                            <span className="text-[#1A863A] font-bold">{calculateFees(listing.price).total} USDC</span>
+                          <div className="flex justify-between text-gray-900 pt-2.5 border-t border-[#E5E5E2] font-bold">
+                            <span>Total Settlement</span>
+                            <span className="text-[#1A863A] tabular-nums">{calculateFees(listing.price).total} USDC</span>
                           </div>
-                          <div className="text-[10px] text-gray-500 font-sans mt-3 flex items-start gap-1.5 bg-white p-2.5 rounded border border-gray-200">
-                            <Info size={12} className="shrink-0 mt-0.5 text-[#1A863A]" />
-                            <span>Seller receives {calculateFees(listing.price).sellerReceives} USDC. Escrow guarantees atomic transfer.</span>
+                          <div className="text-[10px] text-gray-500 font-mono mt-2 flex items-start gap-1.5 bg-white p-2 rounded border border-[#E5E5E2]">
+                            <Info size={11} className="shrink-0 mt-0.5 text-[#1A863A]" />
+                            <span>Atomic escrow guarantees instant title transfer upon settlement.</span>
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <Button variant="secondary" className="px-3" onClick={() => { setSelectedListing(null); setTxState('idle'); }}>
-                            <X size={16} />
+                            <X size={15} />
                           </Button>
-                          <Button variant="primary" className="flex-1 text-sm" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
-                            {txState === 'idle' ? 'Confirm Buy' : txState === 'approving' ? 'Approving USDC...' : 'Purchasing name...'}
+                          <Button variant="primary" className="flex-1 text-xs font-mono font-semibold py-2.5" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
+                            {txState === 'idle' ? 'Confirm Settlement' : txState === 'approving' ? 'Approving USDC...' : 'Executing Purchase...'}
                           </Button>
                         </div>
                       </>
                     )}
                   </div>
                 ) : (
-                  <div className="mt-auto pt-5 border-t border-gray-100">
-                    <Button variant="secondary" className="w-full text-sm py-2.5" onClick={() => setSelectedListing(listing)}>
-                      Buy Name
+                  <div className="mt-auto pt-4 border-t border-[#E5E5E2]">
+                    <Button variant="secondary" className="w-full text-xs font-mono font-semibold py-2.5" onClick={() => setSelectedListing(listing)}>
+                      Purchase Record
                     </Button>
                   </div>
                 )}
@@ -1512,43 +1577,65 @@ const MyNamesView = ({
 
   return (
     <div className="max-w-5xl mx-auto pt-16 pb-32 px-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 border-b border-gray-200 pb-8 gap-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 border-b border-[#E5E5E2] pb-8 gap-6">
         <div>
-          <h1 className="text-4xl font-serif font-bold text-gray-900 mb-3">My Names</h1>
-          <p className="text-gray-500 font-sans text-lg">Manage your identity portfolio.</p>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
+            Namespace Management
+          </span>
+          <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">My Names</h1>
+          <p className="text-gray-500 font-sans text-base mt-1">Manage, renew, delegate, and trade your active .arc identities.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {balance !== undefined && (
-            <div className="bg-white px-5 py-3 rounded-xl border border-gray-200 shadow-sm">
-              <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Balance</p>
-              <p className="text-2xl font-mono text-[#1A863A] font-bold">{balance} <span className="text-gray-500 text-sm font-sans font-medium">USDC</span></p>
+            <div className="bg-white px-5 py-3 rounded-xl border border-[#E5E5E2] shadow-sm">
+              <p className="text-gray-400 text-[10px] font-mono uppercase tracking-wider font-semibold mb-1">Settlement Balance</p>
+              <p className="text-2xl font-mono text-[#1A863A] font-bold tabular-nums">
+                {balance} <span className="text-gray-500 text-xs font-mono font-normal">USDC</span>
+              </p>
             </div>
           )}
-          <div className="text-left sm:text-right bg-white px-5 py-3 rounded-xl border border-gray-200 shadow-sm">
-            <p className="text-gray-400 text-[10px] font-sans font-bold uppercase tracking-wider mb-1">Capacity</p>
-            <p className="text-2xl font-mono text-gray-900 font-bold">{usedCount} <span className="text-gray-500 text-base font-sans font-medium">/ 3 Used</span></p>
+          <div className="text-left sm:text-right bg-white px-5 py-3 rounded-xl border border-[#E5E5E2] shadow-sm min-w-[140px]">
+            <div className="flex items-center justify-between sm:justify-end gap-2 mb-1">
+              <span className="text-gray-400 text-[10px] font-mono uppercase tracking-wider font-semibold">Wallet Quota</span>
+              <div className="flex items-center gap-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={`w-2.5 h-2.5 rounded-sm transition-all ${
+                      i < usedCount 
+                        ? 'bg-[#1A863A] shadow-sm' 
+                        : 'border border-[#E5E5E2] bg-[#F5F5F3]'
+                    }`}
+                    title={i < usedCount ? `Slot ${i + 1}: Registered` : `Slot ${i + 1}: Available`}
+                  />
+                ))}
+              </div>
+            </div>
+            <p className="text-2xl font-mono text-gray-900 font-bold tabular-nums">
+              {usedCount} <span className="text-gray-500 text-xs font-mono font-normal">/ 3 Max</span>
+            </p>
           </div>
         </div>
       </div>
 
       {auth.address && (
-        <div className="mb-8 p-4 sm:p-5 bg-white border border-gray-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div className="mb-8 p-4 sm:p-5 bg-white border border-[#E5E5E2] rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-600 shrink-0">
-              <Wallet size={20} />
+            <div className="w-10 h-10 rounded-lg bg-[#F5F5F3] border border-[#E5E5E2] flex items-center justify-center text-gray-700 shrink-0">
+              <Wallet size={18} />
             </div>
             <div>
-              <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400">Connected Wallet</p>
+              <p className="text-[10px] font-mono uppercase tracking-wider font-semibold text-gray-500">Connected Smart Account</p>
               <p className="font-mono text-xs sm:text-sm font-semibold text-gray-900 break-all">{auth.address}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
               onClick={() => {
                 navigator.clipboard.writeText(auth.address!);
                 toast.success('Address copied to clipboard!');
               }}
-              className="flex-1 sm:flex-none flex justify-center items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl font-sans text-xs font-semibold transition-all shadow-sm active:scale-95 shrink-0"
+              className="flex-1 sm:flex-none flex justify-center items-center gap-2 px-3.5 py-2 bg-[#FBFBFA] hover:bg-[#F0F0EE] text-gray-800 border border-[#E5E5E2] rounded-lg font-mono text-xs font-semibold transition-all shadow-sm active:scale-95 shrink-0"
             >
               <Copy size={13} className="text-gray-500" />
               <span>Copy Address</span>
@@ -1556,9 +1643,9 @@ const MyNamesView = ({
             <Button
               variant="primary"
               onClick={() => navigateTo('send')}
-              className="flex-1 sm:flex-none py-2.5 px-5 text-sm font-semibold shadow-sm"
+              className="flex-1 sm:flex-none py-2 px-4 text-xs font-mono font-semibold"
             >
-              <Send size={14}/> Send Payment
+              <Send size={13}/> Send Payment
             </Button>
           </div>
         </div>
@@ -1566,25 +1653,25 @@ const MyNamesView = ({
 
       <div className="space-y-4">
         {namesList.map(nameItem => (
-          <Card key={nameItem.name} hoverable className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-visible">
-            <div className="flex items-center gap-6">
-              <div className="w-14 h-14 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-2xl shadow-sm">
+          <Card key={nameItem.name} hoverable className="border-[#E5E5E2] bg-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 p-6 relative overflow-visible">
+            <div className="flex items-center gap-5">
+              <div className="w-12 h-12 rounded-xl bg-[#F5F5F3] border border-[#E5E5E2] flex items-center justify-center text-gray-900 font-serif font-bold text-xl shadow-sm shrink-0">
                 {nameItem.name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                   <h3 
-                    className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2 cursor-pointer hover:text-[#1A863A] transition-colors"
+                    className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2 cursor-pointer hover:text-[#1A863A] transition-colors tracking-tight"
                     onClick={() => navigateTo('profile', nameItem.name)}
                   >
                     {nameItem.name}
                     {nameItem.isPrimary && (
-                      <span className="text-[#0052FF] text-[9px] font-sans font-bold px-2 py-0.5 border border-[#0052FF]/20 bg-[#0052FF]/10 rounded-full uppercase tracking-wider flex items-center gap-1">
-                        <Star size={10} className="fill-[#0052FF]" /> Main
+                      <span className="text-[#1A863A] text-[10px] font-mono font-semibold px-2 py-0.5 border border-[#1A863A]/25 bg-[#1A863A]/10 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <Star size={10} className="fill-[#1A863A]" /> Main
                       </span>
                     )}
                     {nameItem.listed && (
-                      <span className="text-amber-700 text-[9px] font-sans font-bold px-2 py-0.5 border border-amber-200 bg-amber-50 rounded-full uppercase tracking-wider">
+                      <span className="text-amber-800 text-[10px] font-mono font-semibold px-2 py-0.5 border border-amber-200 bg-amber-50 rounded-full uppercase tracking-wider">
                         Listed
                       </span>
                     )}
@@ -1602,65 +1689,65 @@ const MyNamesView = ({
                       }
                     }}
                     title="Copy owner address"
-                    className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                    className="p-0.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
                   >
-                    <Copy size={12} />
+                    <Copy size={11} />
                   </button>
                 </p>
                 <p className="text-gray-500 text-xs font-mono flex items-center gap-2">
-                  Expires: {new Date(nameItem.expiry).toLocaleDateString()}
+                  Expires: <span className="tabular-nums">{new Date(nameItem.expiry).toLocaleDateString()}</span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 w-full sm:w-auto mt-2 sm:mt-0 pt-5 sm:pt-0 border-t border-gray-100 sm:border-0">
+            <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-4 sm:pt-0 border-t border-[#E5E5E2] sm:border-0">
               {!nameItem.isPrimary && (
                 <button
                   onClick={() => handleSetPrimary(nameItem.name)}
-                  className="px-3 py-2 text-xs font-sans font-semibold text-gray-600 hover:text-[#0052FF] border border-gray-200 hover:border-blue-200 rounded-xl bg-white hover:bg-blue-50/50 transition-colors flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-2 text-xs font-mono font-semibold text-gray-700 hover:text-[#1A863A] border border-[#E5E5E2] hover:border-[#1A863A]/30 rounded-lg bg-white hover:bg-[#1A863A]/5 transition-colors flex items-center gap-1.5 shadow-sm"
                   title="Set as your primary main identity across Arc"
                 >
-                  <Star size={12} className="text-gray-400" /> Set as Main
+                  <Star size={12} className="text-gray-400" /> Set Main
                 </button>
               )}
 
               {(nameItem.status === 'expiring' || nameItem.status === 'expired') && (
-                <Button variant="primary" className="flex-1 sm:flex-none py-2 text-xs" onClick={() => handleRenew(nameItem.name)}>
+                <Button variant="primary" className="flex-1 sm:flex-none py-2 px-3 text-xs font-mono font-semibold" onClick={() => handleRenew(nameItem.name)}>
                   Renew
                 </Button>
               )}
               
               <div className="relative group flex-1 sm:flex-none">
-                <Button variant="secondary" className="w-full sm:w-auto px-4 py-2 text-xs flex items-center justify-center gap-2">
-                  Manage <ChevronDown size={14} />
+                <Button variant="secondary" className="w-full sm:w-auto px-3.5 py-2 text-xs font-mono font-semibold flex items-center justify-center gap-1.5">
+                  Manage <ChevronDown size={13} />
                 </Button>
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 py-1.5 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-[#E5E5E2] rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-20 py-1 overflow-hidden">
                   {!nameItem.isPrimary && (
-                    <button onClick={() => handleSetPrimary(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                      <Star size={16} className="text-[#0052FF]" /> Set as Main Identity
+                    <button onClick={() => handleSetPrimary(nameItem.name)} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                      <Star size={14} className="text-[#1A863A]" /> Set as Main Identity
                     </button>
                   )}
-                  <button onClick={() => navigateTo('send', nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                    <Send size={16} className="text-gray-400"/> Send Payment
+                  <button onClick={() => navigateTo('send', nameItem.name)} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                    <Send size={14} className="text-gray-400"/> Send Payment
                   </button>
-                  <button onClick={() => handleRenew(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                    <RefreshCw size={16} className="text-gray-400"/> Renew Name
+                  <button onClick={() => handleRenew(nameItem.name)} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                    <RefreshCw size={14} className="text-gray-400"/> Renew Record
                   </button>
-                  <button onClick={() => handleTransfer(nameItem.name)} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                    <ArrowRightLeft size={16} className="text-gray-400"/> Transfer Name
+                  <button onClick={() => handleTransfer(nameItem.name)} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                    <ArrowRightLeft size={14} className="text-gray-400"/> Transfer Record
                   </button>
                   {nameItem.listed ? (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                        <Tag size={16} className="text-gray-400"/> Update Price
+                      <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                        <Tag size={14} className="text-gray-400"/> Update Price
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleCancelListing(nameItem.name); }} className="w-full text-left px-5 py-3 text-sm text-red-600 hover:bg-red-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                        <Tag size={16} className="text-red-500"/> Cancel Listing
+                      <button onClick={(e) => { e.stopPropagation(); handleCancelListing(nameItem.name); }} className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 font-mono transition-colors flex items-center gap-2.5">
+                        <Tag size={14} className="text-red-500"/> Cancel Listing
                       </button>
                     </>
                   ) : (
-                    <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 font-sans transition-colors flex items-center gap-3 font-medium">
-                      <Tag size={16} className="text-gray-400"/> List for Sale
+                    <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                      <Tag size={14} className="text-gray-400"/> List for Sale
                     </button>
                   )}
                 </div>
@@ -1829,26 +1916,29 @@ const SendView = ({
   if (step === 'success') {
     return (
       <div className="max-w-lg mx-auto pt-20 px-6 pb-32">
-        <Card className="text-center py-12 border-[#1A863A]/20 bg-[#1A863A]/5 shadow-md">
-          <div className="w-16 h-16 rounded-full bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center mx-auto mb-6">
-            <Check size={32} strokeWidth={2.5} />
+        <Card className="text-center py-12 border-[#1A863A]/20 bg-[#1A863A]/5 shadow-sm p-8">
+          <div className="w-14 h-14 rounded-full bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center mx-auto mb-5">
+            <Check size={28} strokeWidth={2.5} />
           </div>
-          <h3 className="text-3xl font-serif font-bold text-gray-900 mb-2">Done! Payment Sent</h3>
-          <p className="text-gray-500 font-sans mb-10 text-base">
-            Successfully sent <span className="font-mono text-gray-900 font-bold">{amount} USDC</span> to {recipient}.
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#1A863A] font-bold block mb-1">
+            Settlement Confirmed
+          </span>
+          <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">Payment Dispatched</h3>
+          <p className="text-gray-600 font-sans mb-8 text-sm leading-relaxed">
+            Successfully transferred <span className="font-mono text-gray-900 font-bold tabular-nums">{amount} USDC</span> to <span className="font-mono font-semibold text-gray-900">{recipient}</span>.
           </p>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {txHash && (
               <Button 
                 variant="secondary" 
-                className="w-full py-3 text-xs font-mono"
+                className="w-full py-2.5 text-xs font-mono"
                 onClick={() => window.open(`https://explorer.testnet.arc.io/tx/${txHash}`, '_blank')}
               >
-                View on Arcscan <ArrowUpRight size={14}/>
+                View on Arc Explorer <ArrowUpRight size={13}/>
               </Button>
             )}
-            <Button variant="primary" onClick={() => { setStep('edit'); setRecipient(''); setAmount(''); setNote(''); setTxStatus('idle'); }} className="w-full py-3.5">
-              Send Another Payment
+            <Button variant="primary" onClick={() => { setStep('edit'); setRecipient(''); setAmount(''); setNote(''); setTxStatus('idle'); }} className="w-full py-3 text-xs font-mono font-semibold">
+              Execute Another Payment
             </Button>
           </div>
         </Card>
@@ -1858,30 +1948,35 @@ const SendView = ({
 
   return (
     <div className="max-w-2xl mx-auto pt-16 pb-32 px-6">
-      <div className="mb-10 border-b border-gray-200 pb-8">
-        <h1 className="text-4xl font-serif font-bold text-gray-900 mb-3">Send Payment</h1>
-        <p className="text-gray-500 font-sans text-lg">Send USDC securely using .arc names instead of addresses.</p>
+      <div className="mb-10 border-b border-[#E5E5E2] pb-8">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
+          Direct USDC Settlement Console
+        </span>
+        <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">Send Payment</h1>
+        <p className="text-gray-500 font-sans text-base mt-1">Transfer USDC directly using verifiable .arc names instead of 42-character raw addresses.</p>
       </div>
 
-      <Card className="shadow-md border-gray-200">
+      <Card className="border-[#E5E5E2] bg-white shadow-sm p-6 sm:p-8">
         {step === 'edit' ? (
-          <div className="space-y-8">
+          <div className="space-y-6">
             <div>
-              <label className="block text-gray-500 font-sans text-[11px] font-bold uppercase tracking-wider mb-2">To</label>
+              <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold mb-2">
+                Recipient Target
+              </label>
               <div className="relative">
                 <input 
                   type="text" 
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
-                  placeholder="name.arc or 0x..."
-                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans font-medium text-xl p-4 pl-5 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-colors"
+                  placeholder="e.g. alex.arc or 0x..."
+                  className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono text-lg p-3.5 pl-4 rounded-xl focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
                 />
                 {isResolved && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-sm bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                    <span className="font-mono text-gray-500 text-xs">
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs bg-white px-2.5 py-1 rounded-lg border border-[#E5E5E2] shadow-sm">
+                    <span className="font-mono text-gray-600 text-xs tabular-nums">
                       {resolvedAddress?.startsWith('0x') && resolvedAddress.length === 42 ? `${resolvedAddress.slice(0, 6)}...${resolvedAddress.slice(-4)}` : resolvedAddress}
                     </span>
-                    <CheckCircle2 size={16} className="text-[#1A863A]" />
+                    <CheckCircle2 size={14} className="text-[#1A863A]" />
                   </div>
                 )}
               </div>
@@ -1892,26 +1987,33 @@ const SendView = ({
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-gray-500 font-sans text-[11px] font-bold uppercase tracking-wider">Amount (USDC)</label>
+                <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold">
+                  Amount (USDC)
+                </label>
                 {balance !== undefined && (
                   <span className="text-xs font-mono text-gray-500">
-                    Balance: <span className="font-bold text-gray-800">{balance} USDC</span>
+                    Settlement Balance: <span className="font-bold text-gray-800 tabular-nums">{balance} USDC</span>
                   </span>
                 )}
               </div>
-              <input 
-                type="number" 
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-mono text-3xl p-4 pl-5 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-colors mb-4"
-              />
-              <div className="flex gap-2">
+              <div className="relative mb-3">
+                <input 
+                  type="number" 
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono text-3xl font-bold p-3.5 pl-4 rounded-xl focus:outline-none focus:border-gray-900 focus:bg-white transition-all tabular-nums"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-sm text-gray-400 font-bold">
+                  USDC
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-2">
                 {[5, 10, 25, 50, 100].map(amt => (
                   <button 
                     key={amt}
                     onClick={() => setAmount(amt.toString())}
-                    className="flex-1 py-2 text-sm font-mono font-bold border border-gray-200 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-colors bg-white shadow-sm"
+                    className="py-2 text-xs font-mono font-semibold border border-[#E5E5E2] rounded-lg text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors bg-white shadow-sm tabular-nums"
                   >
                     {amt}
                   </button>
@@ -1920,65 +2022,74 @@ const SendView = ({
             </div>
 
             <div>
-              <label className="block text-gray-500 font-sans text-[11px] font-bold uppercase tracking-wider mb-2">Public Note (Optional)</label>
+              <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold mb-2">
+                Public Settlement Note (Optional)
+              </label>
               <input 
                 type="text" 
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="What is this for?"
-                className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-4 pl-5 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-colors text-sm"
+                placeholder="Reference or memo for counterparty..."
+                className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono p-3 pl-4 rounded-xl focus:outline-none focus:border-gray-900 focus:bg-white transition-all text-xs"
                 maxLength={60}
               />
             </div>
 
-            <div className="pt-6 border-t border-gray-100">
+            <div className="pt-2">
               <Button 
                 variant="primary"
-                className="w-full py-4 text-base" 
+                className="w-full py-3.5 text-sm font-mono font-semibold" 
                 onClick={handleReview}
                 disabled={!recipient || !amount}
               >
-                Review Transaction
+                Review Settlement Order
               </Button>
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            <h3 className="text-gray-900 font-serif font-bold text-xl mb-4 border-b border-gray-100 pb-4 flex items-center gap-2"><CreditCard size={20} className="text-gray-400"/> Transaction Preview</h3>
+          <div className="space-y-6">
+            <div className="border-b border-[#E5E5E2] pb-4 flex items-center justify-between">
+              <h3 className="text-gray-900 font-serif font-bold text-lg flex items-center gap-2">
+                <CreditCard size={18} className="text-[#1A863A]"/> Settlement Order Verification
+              </h3>
+              <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider font-semibold">Atomic Transfer</span>
+            </div>
             
-            <div className="space-y-6 font-sans">
-              <div className="flex flex-col gap-2">
-                <span className="text-gray-500 text-[11px] font-bold uppercase tracking-wider">Recipient</span>
-                <div className="bg-gray-50 border border-gray-200 p-5 rounded-xl flex justify-between items-center">
+            <div className="space-y-4 font-mono">
+              <div className="bg-[#FBFBFA] border border-[#E5E5E2] p-4 rounded-xl">
+                <span className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold block mb-1.5">Recipient Target</span>
+                <div className="flex justify-between items-center">
                   <div>
-                    <div className="text-gray-900 font-serif font-bold text-2xl mb-1">{recipient}</div>
-                    {isResolved && <div className="text-gray-500 font-mono text-sm">{resolvedAddress}</div>}
+                    <div className="text-gray-900 font-serif font-bold text-xl">{recipient}</div>
+                    {isResolved && <div className="text-gray-500 text-xs mt-0.5">{resolvedAddress}</div>}
                   </div>
                   {isResolved && <ReputationBadge name={recipient} showDetails={false} />}
                 </div>
               </div>
               
-              <div className="flex justify-between items-end py-6 border-y border-gray-100">
-                <span className="text-gray-500 text-[11px] font-bold uppercase tracking-wider mb-1.5">Amount</span>
-                <span className="text-5xl font-mono text-gray-900 tracking-tight font-bold">{amount} <span className="text-xl text-gray-400 font-sans font-medium">USDC</span></span>
+              <div className="flex justify-between items-end py-4 border-y border-[#E5E5E2]">
+                <span className="text-gray-500 text-[11px] uppercase tracking-wider font-semibold">Total USDC Transfer</span>
+                <span className="text-3xl font-mono text-gray-900 font-bold tabular-nums">
+                  {amount} <span className="text-sm text-gray-400 font-normal">USDC</span>
+                </span>
               </div>
 
               {note && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-gray-500 text-[11px] font-bold uppercase tracking-wider">Note (Public on-chain)</span>
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-gray-900 text-sm font-medium">"{note}"</div>
+                <div className="bg-[#FBFBFA] p-3 rounded-lg border border-[#E5E5E2]">
+                  <span className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold block mb-1">On-Chain Memo</span>
+                  <p className="text-gray-900 text-xs italic">"{note}"</p>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-4 pt-6">
-              <Button variant="secondary" onClick={() => setStep('edit')} disabled={txStatus !== 'idle'} className="px-6">
+            <div className="flex gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setStep('edit')} disabled={txStatus !== 'idle'} className="px-5 text-xs font-mono">
                 Back
               </Button>
-              <Button variant="primary" className="flex-1 py-4 text-base" onClick={handleConfirm} disabled={txStatus !== 'idle'}>
-                {txStatus === 'idle' && 'Confirm & Sign'}
-                {txStatus === 'approving' && 'Approving USDC...'}
-                {txStatus === 'confirming' && 'Sending payment...'}
+              <Button variant="primary" className="flex-1 py-3 text-xs font-mono font-semibold" onClick={handleConfirm} disabled={txStatus !== 'idle'}>
+                {txStatus === 'idle' && 'Authorize Transfer via Passkey'}
+                {txStatus === 'approving' && 'Approving USDC Settlement...'}
+                {txStatus === 'confirming' && 'Dispatching Payment...'}
               </Button>
             </div>
           </div>
@@ -2105,21 +2216,21 @@ const NameProfileView = ({
             <OwnerProfileSnippet ownerStr={ownerStr} navigateTo={navigateTo} />
           </div>
           
-          <div className="flex flex-col gap-3 w-full md:w-auto z-10 shrink-0">
-            <Button variant="primary" onClick={() => navigateTo('send', name)} className="w-full md:w-auto py-3.5 text-base">
-              Send Payment
+          <div className="flex flex-col gap-2.5 w-full md:w-auto z-10 shrink-0">
+            <Button variant="primary" onClick={() => navigateTo('send', name)} className="w-full md:w-auto py-3 px-5 text-xs font-mono font-semibold">
+              <Send size={13} className="mr-1.5 inline" /> Send Payment
             </Button>
             {listingPrice !== null && (
-              <Button variant="secondary" onClick={() => navigateTo('marketplace')} className="w-full md:w-auto py-3.5 text-base border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100">
-                Buy for {listingPrice} USDC
+              <Button variant="accent" onClick={() => navigateTo('marketplace')} className="w-full md:w-auto py-3 px-5 text-xs font-mono font-semibold">
+                Acquire via Escrow: {listingPrice} USDC
               </Button>
             )}
           </div>
         </div>
 
-        <div className="p-8 md:p-12 bg-gray-50">
+        <div className="p-8 md:p-12 bg-[#FBFBFA]">
           <h3 className="text-xl font-serif font-bold text-gray-900 mb-8 flex items-center gap-3">
-            <History size={20} className="text-gray-400" /> Activity History
+            <History size={18} className="text-[#1A863A]" /> Activity Ledger
           </h3>
           
           {activities.length > 0 ? (
@@ -2132,27 +2243,27 @@ const NameProfileView = ({
                     case 'Received Tip':
                       return <Zap size={18} className="text-amber-500" />;
                     case 'Bought Name':
-                      return <Store size={18} className="text-blue-500" />;
+                      return <Store size={18} className="text-[#1A863A]" />;
                     case 'Gifted Name':
-                      return <Gift size={18} className="text-purple-500" />;
+                      return <Gift size={18} className="text-[#1A863A]" />;
                     case 'Renewed Name':
                       return <RefreshCw size={18} className="text-[#1A863A]" />;
                     case 'Listed for Sale':
-                      return <Tag size={18} className="text-blue-500" />;
+                      return <Tag size={18} className="text-gray-600" />;
                     default:
                       return <ArrowRightLeft size={18} className="text-gray-400" />;
                   }
                 };
 
                 return (
-                  <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-5 border-b border-gray-200 last:border-0 gap-4 hover:bg-white -mx-4 px-4 rounded-xl transition-colors">
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm shrink-0">
+                  <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 border-b border-[#E5E5E2] last:border-0 gap-4 hover:bg-white -mx-3 px-3 rounded-xl transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center shadow-sm shrink-0">
                         {getActionIcon()}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-gray-900 font-sans font-bold">{tx.action}</p>
+                          <p className="text-gray-900 font-sans font-semibold text-sm">{tx.action}</p>
                           {tx.txHash && (
                             <a
                               href={`https://explorer.testnet.arc.io/tx/${tx.txHash}`}
@@ -2165,15 +2276,15 @@ const NameProfileView = ({
                             </a>
                           )}
                         </div>
-                        <p className="text-gray-500 font-mono text-xs mt-1">
+                        <p className="text-gray-500 font-mono text-xs mt-0.5">
                           {tx.from}
                           {tx.note && <span className="text-gray-600 font-sans italic ml-2">"{tx.note}"</span>}
                         </p>
                       </div>
                     </div>
                     <div className="sm:text-right">
-                      <p className="text-gray-900 font-mono font-bold text-base">{tx.amount}</p>
-                      <p className="text-gray-500 font-sans text-xs mt-1">{formatRelativeTime(tx.timestamp)}</p>
+                      <p className="text-gray-900 font-mono font-bold text-sm tabular-nums">{tx.amount}</p>
+                      <p className="text-gray-400 font-mono text-[11px] mt-0.5">{formatRelativeTime(tx.timestamp)}</p>
                     </div>
                   </div>
                 );
@@ -2558,19 +2669,19 @@ const UserProfileView = ({
                     )}
                     
                     <div className="flex flex-wrap items-center gap-6 text-sm font-sans text-gray-500 pt-6 mt-6 border-t border-gray-200">
-                      {profile.email && (
-                        <span className="flex items-center gap-1.5 text-gray-600">
+                      {isOwner && profile.email && (
+                        <span className="flex items-center gap-1.5 text-gray-600" title="Private to your wallet">
                           <Mail size={16} className="text-gray-500" /> {profile.email}
                         </span>
                       )}
                       {profile.twitter && (
-                        <a href={`https://twitter.com/${profile.twitter}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-400 hover:underline font-medium">
+                        <a href={`https://twitter.com/${profile.twitter}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-gray-700 hover:text-gray-900 hover:underline font-medium">
                           <span>@{profile.twitter}</span>
                         </a>
                       )}
                       {profile.website && (
-                        <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#2DD4BF] hover:underline font-medium">
-                          <ArrowUpRight size={16} /> {profile.website.replace(/^https?:\/\//, '')}
+                        <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#1A863A] hover:underline font-medium">
+                          <ArrowUpRight size={14} /> {profile.website.replace(/^https?:\/\//, '')}
                         </a>
                       )}
                     </div>
@@ -2855,146 +2966,138 @@ export default function App() {
     { id: 'names', label: 'Names', icon: Search },
     { id: 'marketplace', label: 'Marketplace', icon: Store },
     { id: 'mynames', label: 'My Names', icon: User },
+    { id: 'send', label: 'Send & Tip', icon: Send },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col selection:bg-[#1A863A]/20 text-gray-900 font-sans bg-[#FAFAFA]">
+    <div className="min-h-screen flex flex-col selection:bg-[#1A863A]/20 text-gray-900 font-sans bg-[#FBFBFA]">
       <style>{globalStyles}</style>
 
-      {currentView === 'home' ? (
-        <header className="flex items-center justify-between px-6 md:px-10 h-20 border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-          <div className="flex items-center gap-8">
-            <div 
-              className="text-[#111] font-serif font-bold text-2xl tracking-tight cursor-pointer flex items-center gap-2"
-              onClick={() => navigateTo('home')}
-            >
-              <div className="text-[#1A863A]">&lt;&gt;</div>
-              ANS
-            </div>
+      {/* UNIFIED PROTOCOL HEADER */}
+      <header className="flex items-center justify-between px-4 sm:px-8 h-20 border-b border-[#E5E5E2] bg-white/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex items-center gap-6 md:gap-10">
+          <div 
+            className="text-gray-900 font-serif font-bold text-2xl tracking-tight cursor-pointer flex items-center gap-2 shrink-0 select-none"
+            onClick={() => navigateTo('home')}
+          >
+            <div className="text-[#1A863A] font-mono font-bold text-lg">&lt;/&gt;</div>
+            <span>ANS</span>
           </div>
-          <Button variant="primary" onClick={() => navigateTo('names')} className="font-sans font-bold text-sm px-6">
-            Launch App
-          </Button>
-        </header>
-      ) : (
-        <header className="flex items-center justify-between px-4 sm:px-8 h-20 border-b border-gray-200 bg-white sticky top-0 z-50 shadow-sm">
-          <div className="flex items-center gap-6 md:gap-12">
-            <div 
-              className="text-[#111] font-serif font-bold text-2xl tracking-tight cursor-pointer flex items-center gap-2 shrink-0"
-              onClick={() => navigateTo('home')}
-            >
-              <div className="text-[#1A863A]">&lt;&gt;</div>
-              ANS
-            </div>
-            <nav className="hidden md:flex items-center gap-2">
-              {navItems.map(item => (
+          <nav className="hidden md:flex items-center gap-1.5">
+            {navItems.map(item => {
+              const isActive = currentView === item.id;
+              return (
                 <button
                   key={item.id}
                   onClick={() => navigateTo(item.id)}
-                  className={`px-4 py-2.5 rounded-xl font-sans text-sm font-semibold transition-colors ${currentView === item.id ? 'text-gray-900 bg-gray-100 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                  className={`px-3.5 py-2 rounded-lg font-mono text-xs font-semibold transition-all ${
+                    isActive 
+                      ? 'text-gray-900 bg-[#F5F5F3] shadow-sm border border-[#E5E5E2]' 
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-[#F5F5F3]/60'
+                  }`}
                 >
                   {item.label}
                 </button>
-              ))}
-            </nav>
+              );
+            })}
+          </nav>
+        </div>
+        
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden lg:flex items-center gap-2 text-gray-600 text-xs font-mono font-medium px-3 py-1.5 border border-[#E5E5E2] rounded-full bg-[#FBFBFA]">
+            <div className="w-2 h-2 rounded-full bg-[#1A863A]"></div>
+            <span>Arc Testnet</span>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden lg:flex items-center gap-2 text-gray-500 text-xs font-sans font-medium px-3 py-1.5 border border-gray-200 rounded-full bg-gray-50">
-              <div className="w-2 h-2 rounded-full bg-[#1A863A]"></div>
-              Arc Network
-            </div>
-            
-            {auth.isConnected && auth.address ? (
-              <>
-                {isBalanceLoading && usdcBalanceRaw === undefined && fallbackBalance === null ? (
-                  <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-xl border border-gray-200" />
-                ) : (
-                  <div 
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-sans font-medium text-gray-800 shadow-sm cursor-default"
-                    title="Your USDC balance on Arc Testnet"
+          {auth.isConnected && auth.address ? (
+            <>
+              {isBalanceLoading && usdcBalanceRaw === undefined && fallbackBalance === null ? (
+                <div className="h-9 w-24 bg-gray-100 animate-pulse rounded-lg border border-[#E5E5E2]" />
+              ) : (
+                <div 
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-[#FBFBFA] border border-[#E5E5E2] rounded-lg text-xs font-mono text-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-default"
+                  title="Your USDC balance on Arc Testnet"
+                >
+                  <CreditCard size={13} className="text-[#1A863A] shrink-0" />
+                  <span className="font-bold text-gray-900 tabular-nums">{formattedBalance}</span>
+                  <span className="text-gray-500 text-[10px] font-semibold">USDC</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {currentPrimaryName && (
+                  <button
+                    onClick={() => navigateTo('profile', currentPrimaryName)}
+                    title="View your main identity profile"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#FBFBFA] text-gray-900 border border-[#E5E5E2] rounded-lg font-mono text-xs font-bold transition-all shadow-sm active:scale-95"
                   >
-                    <CreditCard size={14} className="text-[#1A863A] shrink-0" />
-                    <span className="font-mono font-bold text-gray-900">{formattedBalance}</span>
-                    <span className="text-gray-500 text-[11px] font-semibold">USDC</span>
-                  </div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1A863A] shrink-0" />
+                    <span className="font-serif">{currentPrimaryName}</span>
+                  </button>
                 )}
 
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  {currentPrimaryName && (
-                    <button
-                      onClick={() => navigateTo('profile', currentPrimaryName)}
-                      title="View your main identity profile"
-                      className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl font-sans text-xs font-bold transition-all shadow-sm group active:scale-95"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-[#1A863A] shrink-0" />
-                      <span className="font-serif">{currentPrimaryName}</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleCopyAddress}
-                    title="Click to copy your address"
-                    className="flex items-center gap-2 px-2.5 sm:px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-xl font-mono text-xs font-medium transition-all shadow-sm group active:scale-95"
-                  >
-                    {copiedAddress ? (
-                      <>
-                        <Check size={14} className="text-[#1A863A] shrink-0" />
-                        <span className="text-[#1A863A] font-sans font-medium">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{auth.address.slice(0, 5)}...{auth.address.slice(-4)}</span>
-                        <Copy size={12} className="text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
-                      </>
-                    )}
-                  </button>
-                </div>
-
                 <button
-                  onClick={() => navigateTo('userprofile', auth.address)}
-                  title="View your public profile"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-sans font-medium text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl transition-colors shadow-sm"
+                  onClick={handleCopyAddress}
+                  title="Click to copy your address"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white hover:bg-[#FBFBFA] text-gray-700 border border-[#E5E5E2] rounded-lg font-mono text-xs font-medium transition-all shadow-sm active:scale-95"
                 >
-                  <User size={14} />
-                  <span>Profile</span>
-                </button>
-
-                <button
-                  onClick={() => auth.signOut()}
-                  title="Sign out"
-                  className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl transition-colors shadow-sm shrink-0"
-                >
-                  <LogOut size={16} />
-                </button>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="secondary"
-                  onClick={() => auth.signUp()}
-                  className="font-mono text-sm h-10 px-4 hidden sm:flex"
-                  disabled={auth.isLoading}
-                >
-                  Create Wallet
-                </Button>
-                <Button 
-                  variant="primary"
-                  onClick={() => auth.signIn()}
-                  className="font-mono text-sm h-10 px-6"
-                  disabled={auth.isLoading}
-                >
-                  {auth.isLoading ? (
-                    <span className="flex items-center gap-2">Connecting...</span>
+                  {copiedAddress ? (
+                    <>
+                      <Check size={13} className="text-[#1A863A] shrink-0" />
+                      <span className="text-[#1A863A] font-semibold">Copied!</span>
+                    </>
                   ) : (
-                    <span className="flex items-center gap-2">Sign In</span>
+                    <>
+                      <span className="tabular-nums">{auth.address.slice(0, 5)}...{auth.address.slice(-4)}</span>
+                      <Copy size={11} className="text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
+                    </>
                   )}
-                </Button>
+                </button>
               </div>
-            )}
-          </div>
-        </header>
-      )}
+
+              <button
+                onClick={() => navigateTo('userprofile', auth.address)}
+                title="View your public profile"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-[#FBFBFA] border border-[#E5E5E2] rounded-lg transition-colors shadow-sm"
+              >
+                <User size={13} />
+                <span>Profile</span>
+              </button>
+
+              <button
+                onClick={() => auth.signOut()}
+                title="Sign out"
+                className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-[#E5E5E2] hover:border-red-200 rounded-lg transition-colors shadow-sm shrink-0"
+              >
+                <LogOut size={14} />
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="secondary"
+                onClick={() => auth.signUp()}
+                className="font-mono text-xs h-9 px-3.5 hidden sm:flex"
+                disabled={auth.isLoading}
+              >
+                Create Account
+              </Button>
+              <Button 
+                variant="primary"
+                onClick={() => auth.signIn()}
+                className="font-mono text-xs h-9 px-4"
+                disabled={auth.isLoading}
+              >
+                {auth.isLoading ? (
+                  <span className="flex items-center gap-1.5">Connecting...</span>
+                ) : (
+                  <span className="flex items-center gap-1.5">Sign In</span>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      </header>
 
       <main className="flex-1 w-full relative">
         {currentView === 'home' && <HomeView navigateTo={navigateTo} navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
@@ -3007,29 +3110,30 @@ export default function App() {
       </main>
 
       {currentView === 'home' && (
-        <footer className="bg-white border-t border-gray-200 py-16 px-6 pb-28 md:pb-16 z-10 relative">
+        <footer className="bg-white border-t border-[#E5E5E2] py-16 px-6 pb-28 md:pb-16 z-10 relative">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-10">
             <div>
-              <div className="text-gray-900 font-serif font-bold text-2xl flex items-center gap-2 mb-3">
-                <div className="text-[#1A863A]">&lt;&gt;</div>
+              <div className="text-gray-900 font-serif font-bold text-2xl flex items-center gap-2 mb-2">
+                <div className="text-[#1A863A] font-mono font-bold text-lg">&lt;/&gt;</div>
                 ANS
               </div>
-              <p className="text-gray-500 text-sm font-sans font-medium">Arc Name Service</p>
+              <p className="text-gray-500 text-xs font-mono">Arc Name Service Protocol — Arc Testnet</p>
             </div>
             <div className="flex gap-16 md:gap-24">
-              <div className="flex flex-col gap-4 text-sm font-sans">
+              <div className="flex flex-col gap-3 text-sm font-sans">
                 <span className="text-gray-900 mb-1 font-serif font-bold text-base">Navigation</span>
-                <button onClick={() => navigateTo('home')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Home</button>
-                <button onClick={() => navigateTo('names')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Names</button>
-                <button onClick={() => navigateTo('marketplace')} className="text-gray-500 hover:text-gray-900 text-left font-medium">Marketplace</button>
-                <button onClick={() => navigateTo('mynames')} className="text-gray-500 hover:text-gray-900 text-left font-medium">My Names</button>
+                <button onClick={() => navigateTo('home')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Home</button>
+                <button onClick={() => navigateTo('names')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Names Registry</button>
+                <button onClick={() => navigateTo('marketplace')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Marketplace</button>
+                <button onClick={() => navigateTo('mynames')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">My Names</button>
+                <button onClick={() => navigateTo('send')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Send & Tip</button>
               </div>
-              <div className="flex flex-col gap-4 text-sm font-sans">
-                <span className="text-gray-900 mb-1 font-serif font-bold text-base">Technical</span>
-                <a href="https://www.arc.io/network" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">Arc Network</a>
-                <a href="https://docs.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">Documentation</a>
-                <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">GitHub</a>
-                <a href="https://explorer.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 font-medium">Arc Explorer</a>
+              <div className="flex flex-col gap-3 text-sm font-sans">
+                <span className="text-gray-900 mb-1 font-serif font-bold text-base">Protocol</span>
+                <a href="https://www.arc.io/network" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">Arc Network</a>
+                <a href="https://docs.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">Documentation</a>
+                <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">GitHub Repository</a>
+                <a href="https://explorer.testnet.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">Arc Testnet Explorer</a>
               </div>
             </div>
           </div>
@@ -3037,7 +3141,7 @@ export default function App() {
       )}
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center pb-safe pt-2 z-50 px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-[#E5E5E2] flex justify-around items-center pb-safe pt-2 z-50 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
@@ -3045,10 +3149,10 @@ export default function App() {
             <button
               key={item.id}
               onClick={() => navigateTo(item.id)}
-              className={`flex flex-col items-center justify-center w-full py-2 mb-2 rounded-lg transition-colors ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
+              className={`flex flex-col items-center justify-center w-full py-1.5 mb-1 rounded-lg transition-colors ${isActive ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              <Icon size={20} className="mb-1.5" strokeWidth={isActive ? 2.5 : 1.5} />
-              <span className="text-[10px] font-sans font-bold">{item.label}</span>
+              <Icon size={18} className="mb-1" strokeWidth={isActive ? 2.5 : 1.75} />
+              <span className={`text-[9px] font-mono ${isActive ? 'font-bold text-gray-900' : 'font-medium'}`}>{item.label}</span>
             </button>
           );
         })}
@@ -3060,25 +3164,25 @@ export default function App() {
               auth.signIn();
             }
           }}
-          className={`flex flex-col items-center justify-center w-full py-2 mb-2 rounded-lg transition-colors ${auth.isConnected ? 'text-[#1A863A]' : 'text-gray-400'}`}
+          className={`flex flex-col items-center justify-center w-full py-1.5 mb-1 rounded-lg transition-colors ${auth.isConnected ? 'text-[#1A863A]' : 'text-gray-400'}`}
         >
-          <Wallet size={20} className="mb-1.5" strokeWidth={1.5} />
-          <span className="text-[10px] font-mono font-bold">
-            {auth.isConnected && auth.address ? `${auth.address.slice(0, 5)}...${auth.address.slice(-4)}` : 'Sign In'}
+          <Wallet size={18} className="mb-1" strokeWidth={1.75} />
+          <span className="text-[9px] font-mono font-bold">
+            {auth.isConnected && auth.address ? `${auth.address.slice(0, 4)}...${auth.address.slice(-3)}` : 'Sign In'}
           </span>
         </button>
       </nav>
 
       {/* Mobile Wallet Bottom Sheet */}
       {isMobileWalletOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileWalletOpen(false)}>
-          <div className="w-full bg-white rounded-t-3xl p-6 shadow-2xl border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+        <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileWalletOpen(false)}>
+          <div className="w-full bg-white rounded-t-2xl p-6 shadow-2xl border-t border-[#E5E5E2]" onClick={(e) => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
             
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-5">
               <span className="font-serif font-bold text-xl text-gray-900">Your Wallet</span>
               <button onClick={() => setIsMobileWalletOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg">
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
