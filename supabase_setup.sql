@@ -40,7 +40,10 @@ CREATE TABLE IF NOT EXISTS user_private_profiles (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- If email column was previously present on user_profiles, safely migrate data and remove from public table
+-- Safely copy any existing emails from user_profiles to user_private_profiles
+-- WITHOUT dropping the original column from user_profiles.
+-- Existing email data is preserved, while privacy is strictly enforced via 
+-- column-level grants (revoking SELECT on email) and table-level RLS below.
 DO $$
 BEGIN
   IF EXISTS (
@@ -54,7 +57,9 @@ BEGIN
     ON CONFLICT (wallet_address) DO UPDATE
     SET email = EXCLUDED.email, updated_at = EXCLUDED.updated_at;
 
-    ALTER TABLE user_profiles DROP COLUMN email;
+    -- NOTE: DO NOT drop column email here!
+    -- Preserving user_profiles.email prevents destructive data loss.
+    -- Access protection is enforced via explicit column-level grants below.
   END IF;
 END $$;
 
@@ -81,12 +86,24 @@ CREATE TABLE IF NOT EXISTS reputation_summaries (
   last_updated timestamptz NOT NULL DEFAULT now()
 );
 
+-- 5. Auth Challenges Table (Server-issued single-use challenges for profile authorization)
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  challenge text UNIQUE NOT NULL,
+  wallet_address text NOT NULL,
+  operation text NOT NULL DEFAULT 'UPDATE_PROFILE',
+  expires_at timestamptz NOT NULL,
+  consumed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- Row Level Security (RLS) setup
 
 -- Enable RLS on all tables
 ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_private_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auth_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onchain_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reputation_summaries ENABLE ROW LEVEL SECURITY;
 
@@ -141,6 +158,13 @@ GRANT SELECT (id, wallet_address, display_name, bio, avatar_url, banner_url, twi
 DROP POLICY IF EXISTS "Disallow public access to user_private_profiles" ON user_private_profiles;
 CREATE POLICY "Disallow public access to user_private_profiles"
   ON user_private_profiles FOR ALL TO public
+  USING (false);
+
+-- Auth Challenges Policies
+-- Strictly disallow public access to auth_challenges (accessible only via service role)
+DROP POLICY IF EXISTS "Disallow public access to auth_challenges" ON auth_challenges;
+CREATE POLICY "Disallow public access to auth_challenges"
+  ON auth_challenges FOR ALL TO public
   USING (false);
 
 -- Onchain Activity Policies
