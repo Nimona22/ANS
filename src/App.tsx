@@ -3260,12 +3260,27 @@ const UserProfileView = ({
   );
 };
 
+const getInitialRoute = (): 'landing' | 'app' => {
+  if (typeof window === 'undefined') return 'landing';
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  return path === '/app' || path.startsWith('/app/') ? 'app' : 'landing';
+};
+
 export default function App() {
+  const [route, setRoute] = useState<'landing' | 'app'>(getInitialRoute);
   const [currentView, setCurrentView] = useState('home');
   const [profileTarget, setProfileTarget] = useState<string | null>(null);
   const [userProfileTarget, setUserProfileTarget] = useState<string | null>(null);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isMobileWalletOpen, setIsMobileWalletOpen] = useState(false);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(getInitialRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
 
   const auth = usePasskeyAuth();
@@ -3430,6 +3445,24 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
+  const handleLaunchApp = () => {
+    window.history.pushState({}, '', '/app');
+    setRoute('app');
+    window.scrollTo(0, 0);
+  };
+
+  const handleLandingNavigate = (view: string, data: string | null = null) => {
+    window.history.pushState({}, '', '/app');
+    setRoute('app');
+    navigateTo(view, data);
+  };
+
+  const handleLandingNavigateProfile = (name: string) => {
+    window.history.pushState({}, '', '/app');
+    setRoute('app');
+    navigateTo('profile', name);
+  };
+
   const navItems = [
     { id: 'home', label: 'Home', icon: HomeIcon },
     { id: 'names', label: 'Names', icon: Search },
@@ -3437,6 +3470,44 @@ export default function App() {
     { id: 'marketplace', label: 'Marketplace', icon: Store },
     { id: 'mynames', label: 'My Names', icon: User },
   ];
+
+  if (route === 'landing') {
+    return (
+      <div className="min-h-screen flex flex-col selection:bg-[#137A43]/20 text-gray-900 font-sans bg-[#FBFBFA]">
+        <style>{globalStyles}</style>
+
+        {/* STANDALONE LANDING HEADER */}
+        <header className="flex items-center justify-between px-6 sm:px-10 h-20 border-b border-[#E5E5E2] bg-[#FBFBFA]/90 backdrop-blur-md sticky top-0 z-50">
+          <div 
+            className="cursor-pointer select-none hover:opacity-90 transition-opacity"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <ANSLogo />
+          </div>
+
+          <div>
+            <button 
+              onClick={handleLaunchApp}
+              className="bg-[#141413] hover:bg-[#282826] text-white px-5 py-2.5 rounded-full text-xs sm:text-sm font-sans font-medium shadow-sm transition-all active:scale-95 flex items-center gap-2"
+            >
+              <span>Launch App</span>
+              <ArrowRightIcon size={14} />
+            </button>
+          </div>
+        </header>
+
+        {/* STANDALONE HERO / LANDING CONTENT */}
+        <main className="flex-1 w-full relative">
+          <HomeView 
+            navigateTo={handleLandingNavigate} 
+            navigateToProfile={handleLandingNavigateProfile} 
+            auth={auth} 
+            ans={ans} 
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col selection:bg-[#137A43]/20 text-gray-900 font-sans bg-[#FBFBFA]">
