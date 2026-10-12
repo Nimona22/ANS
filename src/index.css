@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 @layer base {
   * {
@@ -15,15 +15,15 @@
 
   body {
     margin: 0;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
     background-color: #FBFBFA;
     color: #141413;
     min-height: 100dvh;
   }
 
   ::selection {
-    background-color: rgba(26, 134, 58, 0.18);
-    color: #0D3C1D;
+    background-color: rgba(19, 122, 67, 0.2);
+    color: #052211;
   }
 
   /* Custom precision scrollbars */

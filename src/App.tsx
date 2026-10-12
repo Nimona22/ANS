@@ -4,7 +4,7 @@ import {
   Search, Send, Store, Wallet, User, Check, AlertCircle, ChevronDown, 
   ArrowRightLeft, Tag, X, Shield, History, ArrowUpRight, Info, 
   Activity, Zap, CreditCard, CheckCircle2, RefreshCw, Clock, ArrowRight as ArrowRightIcon, Gift,
-  Copy, LogOut, Mail, Edit3, Star, Sparkles, Fingerprint
+  Copy, LogOut, Mail, Edit3, Star, Sparkles, Fingerprint, Home as HomeIcon
 , Camera, Share} from 'lucide-react';
 import { toast } from 'sonner';
 import { useReadContract } from 'wagmi';
@@ -57,8 +57,19 @@ const globalStyles = `
   .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
   .font-sans { font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
 
-  .hero-green { color: #1A863A; }
+  .hero-green { color: #137A43; }
 `;
+
+/**
+ * ANS Sovereign Geometric Logo
+ * Distinctive geometric vector mark representing identity resolution on Arc
+ */
+export const ANSLogo = ({ className = "" }: { size?: number; className?: string }) => (
+  <div className={`flex items-center gap-2 select-none shrink-0 ${className}`}>
+    <span className="text-[#137A43] font-mono font-bold text-2xl tracking-tighter leading-none">&lt;&gt;</span>
+    <span className="text-[#141413] font-sans font-bold text-2xl tracking-tight leading-none">ANS</span>
+  </div>
+);
 
 const MOCK_REPUTATION: Record<string, { tier: string; txs: number; sales: number; buys: number; tips: number; since: string; disputes: number }> = {
   "alice.arc": { tier: "Elite", txs: 142, sales: 12, buys: 8, tips: 45, since: "Jan 2024", disputes: 0 },
@@ -92,12 +103,12 @@ const Button = ({ children, variant = 'primary', className = '', ...props }: Rea
   const defaultPy = hasPy ? "" : "py-2.5";
   const defaultText = hasTextSize ? "" : "text-sm";
 
-  const baseStyle = `font-sans font-medium rounded-lg transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A863A] focus-visible:ring-offset-2 active:scale-[0.98] select-none ${defaultPx} ${defaultPy} ${defaultText}`;
+  const baseStyle = `font-sans font-medium rounded-full transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#137A43] focus-visible:ring-offset-2 active:scale-[0.98] select-none ${defaultPx} ${defaultPy} ${defaultText}`;
   
   const variants = {
-    primary: "bg-[#141413] text-white hover:bg-[#282826] shadow-sm border border-black/10 disabled:bg-[#E5E5E2] disabled:text-[#8E8E89]",
+    primary: "bg-[#141413] text-white hover:bg-[#282826] shadow-sm disabled:bg-[#E5E5E2] disabled:text-[#8E8E89]",
     secondary: "bg-white border border-[#E5E5E2] text-[#141413] hover:bg-[#F7F7F6] hover:border-[#D5D5D0] shadow-sm disabled:border-[#ECECE9] disabled:text-[#A0A09B]",
-    accent: "bg-[#1A863A] text-white hover:bg-[#147230] shadow-sm border border-transparent disabled:bg-[#DEF2E3] disabled:text-[#1A863A]/50",
+    accent: "bg-[#137A43] text-white hover:bg-[#0F6536] shadow-sm border border-transparent disabled:bg-[#E8F5E9] disabled:text-[#137A43]/50",
     ghost: "bg-transparent text-[#60605A] hover:text-[#141413] hover:bg-[#F2F2EF] disabled:text-[#A0A09B]"
   };
 
@@ -117,7 +128,7 @@ const Card = ({ children, className = '', noPadding = false, hoverable = false, 
 }) => (
   <div 
     onClick={onClick}
-    className={`border border-[#E5E5E2] bg-white rounded-xl overflow-hidden ${hoverable ? 'hover:border-[#D0D0CB] hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all duration-200 cursor-pointer' : 'shadow-[0_1px_2px_rgba(0,0,0,0.03)]'} ${noPadding ? '' : 'p-6'} ${className}`}
+    className={`border border-[#E5E5E2] bg-white rounded-2xl overflow-hidden ${hoverable ? 'hover:border-[#137A43]/40 hover:shadow-[0_6px_20px_rgba(0,0,0,0.04)] transition-all duration-200 cursor-pointer' : 'shadow-[0_1px_3px_rgba(0,0,0,0.02)]'} ${noPadding ? '' : 'p-6'} ${className}`}
   >
     {children}
   </div>
@@ -172,15 +183,15 @@ const ReputationBadge = ({ name, showDetails = true }: { name: string; showDetai
   const colors: Record<string, string> = {
     "New": "text-[#60605A] bg-[#F7F7F6] border-[#E5E5E2]",
     "Trusted": "text-[#2C2C2A] bg-[#F2F2EF] border-[#DCDCD8]",
-    "Verified": "text-[#1A863A] bg-[#F0F9F2] border-[#DCF2E2]",
-    "Elite": "text-[#0D5724] bg-[#DEF2E3] border-[#BCE5C6]"
+    "Verified": "text-[#137A43] bg-[#E8F5E9] border-[#137A43]/20",
+    "Elite": "text-[#0B4B27] bg-[#DEF2E3] border-[#137A43]/30"
   };
 
   return (
     <div className="relative inline-block">
       <button 
         onClick={(e) => { e.stopPropagation(); if (showDetails) setIsOpen(!isOpen); }}
-        className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-sans font-semibold border transition-all ${colors[rep.tier] || colors.New} ${!showDetails && 'cursor-default'}`}
+        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-sans font-semibold border transition-all ${colors[rep.tier] || colors.New} ${!showDetails && 'cursor-default'}`}
       >
         <Shield size={11} strokeWidth={2.2} />
         {rep.tier}
@@ -200,7 +211,7 @@ const ReputationBadge = ({ name, showDetails = true }: { name: string; showDetai
             <div className="flex justify-between"><span>Tips Sent/Recv</span><span className="text-[#141413] font-medium font-mono">{rep.tips}</span></div>
             <div className="flex justify-between pt-1 mt-1 border-t border-[#F0F0ED]">
               <span>Dispute Flags</span>
-              <span className={rep.disputes > 0 ? "text-red-600 font-bold font-mono" : "text-[#1A863A] font-bold font-mono"}>{rep.disputes}</span>
+              <span className={rep.disputes > 0 ? "text-red-600 font-bold font-mono" : "text-[#137A43] font-bold font-mono"}>{rep.disputes}</span>
             </div>
           </div>
         </div>
@@ -307,28 +318,53 @@ const InteractiveSearch = ({
 
   return (
     <div className={`w-full ${isHero ? 'max-w-2xl' : 'max-w-3xl'} mx-auto`}>
-      <div className="relative mb-6">
-        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-[#8E8E89]">
-          <Search size={20} strokeWidth={2} />
+      <form 
+        onSubmit={(e) => {
+          e.preventDefault();
+        }} 
+        className="relative max-w-2xl mx-auto mb-4"
+      >
+        <div className="relative flex items-center bg-white border border-[#E5E5E2] rounded-full p-2 pl-6 shadow-sm focus-within:border-[#137A43] focus-within:ring-2 focus-within:ring-[#137A43]/10 transition-all">
+          <Search size={20} className="text-gray-400 mr-3 shrink-0" />
+          <input 
+            type="text" 
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for a name (e.g. alice.arc)"
+            autoFocus={autoFocus}
+            aria-label="Search for a .arc name"
+            className="w-full bg-transparent text-sm sm:text-base text-[#141413] placeholder:text-gray-400 font-sans outline-none pr-3"
+            spellCheck="false"
+          />
+          <button 
+            type="submit" 
+            disabled={isSearching}
+            className="bg-[#137A43] hover:bg-[#0F6536] text-white font-medium text-sm px-7 py-2.5 sm:px-8 sm:py-3 rounded-full transition-colors shrink-0 disabled:opacity-60 flex items-center gap-1.5 shadow-sm active:scale-95"
+          >
+            {isSearching ? <RefreshCw size={15} className="animate-spin" /> : 'Search'}
+          </button>
         </div>
-        <input 
-          type="text" 
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for an identity"
-          autoFocus={autoFocus}
-          className={`w-full bg-white border border-[#DCDCD8] text-[#141413] font-mono py-4 pl-14 pr-24 rounded-xl focus:outline-none focus:border-[#1A863A] focus:ring-2 focus:ring-[#1A863A]/10 transition-all placeholder:text-[#A0A09B] placeholder:font-sans shadow-sm ${isHero ? 'text-lg' : 'text-xl'}`}
-          spellCheck="false"
-        />
-        <div className={`absolute right-5 top-1/2 -translate-y-1/2 text-[#1A863A] font-mono font-semibold pointer-events-none ${isHero ? 'text-base' : 'text-lg'}`}>
-          .arc
-        </div>
+      </form>
+
+      {/* Popular shortcuts matching the design system */}
+      <div className="flex items-center justify-center flex-wrap gap-2 mb-8 text-xs font-mono">
+        <span className="text-[#8E8E89] mr-1 font-sans">Popular:</span>
+        {['alice.arc', 'dev.arc', 'nina.arc', 'marketplace.arc'].map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setQuery(item.replace('.arc', ''))}
+            className="px-3.5 py-1 bg-white border border-[#E5E5E2] hover:border-[#137A43] hover:text-[#137A43] text-[#40403B] rounded-full text-xs font-mono transition-colors shadow-2xs"
+          >
+            {item}
+          </button>
+        ))}
       </div>
 
       <div className="min-h-[20px] text-left">
         {isSearching && (
           <div className="text-center text-[#60605A] font-mono text-xs flex items-center justify-center gap-2 py-4">
-            <div className="w-3.5 h-3.5 border-2 border-[#1A863A] border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-3.5 h-3.5 border-2 border-[#137A43] border-t-transparent rounded-full animate-spin"></div>
             Querying Arc namespace...
           </div>
         )}
@@ -459,8 +495,8 @@ const RegistrationProcess = ({
 
   if (txStep === 'success') {
     return (
-      <Card className="text-center py-10 border-[#1A863A]/20 bg-[#1A863A]/5 shadow-sm">
-        <div className="w-12 h-12 rounded-full bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center mx-auto mb-4">
+      <Card className="text-center py-10 border-[#137A43]/20 bg-[#E8F5E9]/30 shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mx-auto mb-4">
           <Check size={24} strokeWidth={3} />
         </div>
         <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">Done! {name} {isGift ? 'Gifted' : 'Registered'}</h3>
@@ -475,7 +511,7 @@ const RegistrationProcess = ({
           >
             View Tx <ArrowUpRight size={14}/>
           </Button>
-          <Button variant="primary" onClick={() => setTxStep('idle')} className="text-sm">Manage Name</Button>
+          <Button variant="accent" onClick={() => setTxStep('idle')} className="text-sm">Manage Name</Button>
         </div>
       </Card>
     );
@@ -489,11 +525,11 @@ const RegistrationProcess = ({
             Namespace Record
           </span>
           <h2 className="text-3xl font-serif font-bold text-gray-900 tracking-tight">{name}</h2>
-          <span className="text-[#1A863A] text-xs font-mono font-semibold inline-flex items-center gap-1.5 mt-2 bg-[#1A863A]/10 border border-[#1A863A]/20 px-2.5 py-0.5 rounded-full">
+          <span className="text-[#137A43] text-xs font-mono font-semibold inline-flex items-center gap-1.5 mt-2 bg-[#E8F5E9] border border-[#137A43]/20 px-3 py-1 rounded-full">
             <CheckCircle2 size={13} /> Unregistered / Available
           </span>
         </div>
-        <div className="text-left sm:text-right bg-[#FBFBFA] p-3.5 rounded-xl border border-[#E5E5E2]">
+        <div className="text-left sm:text-right bg-[#FBFBFA] p-3.5 rounded-2xl border border-[#E5E5E2]">
           <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-0.5">Registration Fee</span>
           <div className="text-2xl font-mono font-bold text-gray-900 tabular-nums">
             {price} <span className="text-gray-500 text-xs font-mono font-normal">USDC</span>
@@ -506,15 +542,15 @@ const RegistrationProcess = ({
           <label className="block text-gray-500 font-mono text-[11px] uppercase tracking-wider font-semibold mb-2">
             Registration Mode
           </label>
-          <div className="grid grid-cols-2 bg-[#F5F5F3] p-1 rounded-xl border border-[#E5E5E2]">
+          <div className="grid grid-cols-2 bg-[#F5F5F3] p-1 rounded-full border border-[#E5E5E2]">
             <button 
-              className={`py-2 text-xs font-mono font-semibold rounded-lg transition-all ${!isGift ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`py-2 text-xs font-mono font-semibold rounded-full transition-all ${!isGift ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
               onClick={() => setIsGift(false)}
             >
               Self-Register
             </button>
             <button 
-              className={`py-2 text-xs font-mono font-semibold rounded-lg transition-all ${isGift ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`py-2 text-xs font-mono font-semibold rounded-full transition-all ${isGift ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
               onClick={() => setIsGift(true)}
             >
               Gift to Recipient
@@ -532,7 +568,7 @@ const RegistrationProcess = ({
               value={giftTarget}
               onChange={(e) => setGiftTarget(e.target.value)}
               placeholder="0x... or alice.arc"
-              className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono p-3 rounded-lg focus:outline-none focus:border-gray-900 focus:bg-white text-sm transition-all"
+              className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono p-3 rounded-xl focus:outline-none focus:border-[#137A43] focus:bg-white text-sm transition-all"
             />
           </div>
         )}
@@ -549,16 +585,16 @@ const RegistrationProcess = ({
                 <button 
                   key={m}
                   onClick={() => setDuration(m)}
-                  className={`py-3 px-3 rounded-xl border text-left transition-all ${
+                  className={`py-3 px-3 rounded-2xl border text-left transition-all ${
                     isSelected 
-                      ? 'border-gray-900 bg-gray-900 text-white shadow-sm' 
+                      ? 'border-[#137A43] bg-[#E8F5E9]/50 text-gray-900 shadow-2xs ring-1 ring-[#137A43]' 
                       : 'border-[#E5E5E2] text-gray-700 hover:border-gray-400 bg-white'
                   }`}
                 >
-                  <div className={`text-xs font-mono font-semibold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                  <div className="text-xs font-mono font-semibold text-gray-900">
                     {m} Months
                   </div>
-                  <div className={`text-[11px] font-mono mt-0.5 tabular-nums ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                  <div className={`text-[11px] font-mono mt-0.5 tabular-nums ${isSelected ? 'text-[#137A43] font-bold' : 'text-gray-500'}`}>
                     {durPrice} USDC
                   </div>
                 </button>
@@ -568,15 +604,15 @@ const RegistrationProcess = ({
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-mono">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-mono">
             {error}
           </div>
         )}
 
         <div className="pt-2">
           <Button 
-            variant="primary"
-            className="w-full py-3.5 text-sm font-mono font-semibold" 
+            variant="accent"
+            className="w-full py-3.5 text-sm font-sans font-medium" 
             onClick={handleRegister}
             disabled={isLoading || txStep !== 'idle' || (isGift && !giftTarget)}
           >
@@ -586,12 +622,653 @@ const RegistrationProcess = ({
             {txStep === 'registering' && (isGift ? 'Executing Gift Operation...' : 'Registering Arc Identity...')}
           </Button>
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 font-mono mt-3">
-            <Shield size={12} className="text-[#1A863A]" />
+            <Shield size={12} className="text-[#137A43]" />
             <span>Atomic settlement on Arc Testnet (ERC-4337 Passkey Smart Account)</span>
           </div>
         </div>
       </div>
     </Card>
+  );
+};
+
+/**
+ * Abstract Arc-Inspired Geometric Centerpiece
+ * Faithful recreation of the reference 3D white sculptural arch, 
+ * central emerald star, orbital planetary rings, and stacked typography
+ */
+const ArcGeometricCenterpiece = () => {
+  return (
+    <div className="relative w-full max-w-[500px] aspect-[1.1/1] mx-auto flex items-center justify-center select-none pointer-events-none lg:pointer-events-auto">
+      <svg 
+        viewBox="0 0 500 420" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full"
+      >
+        <defs>
+          <linearGradient id="archFrontGrad" x1="170" y1="50" x2="330" y2="350" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="35%" stopColor="#F7F7F5" />
+            <stop offset="70%" stopColor="#E7E7E3" />
+            <stop offset="100%" stopColor="#D5D5CF" />
+          </linearGradient>
+
+          <linearGradient id="archInnerGrad" x1="210" y1="110" x2="340" y2="350" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#EDEDEA" />
+            <stop offset="55%" stopColor="#DCDCD6" />
+            <stop offset="100%" stopColor="#C4C4BC" />
+          </linearGradient>
+
+          <linearGradient id="starTop" x1="260" y1="165" x2="260" y2="198" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#22C55E" />
+            <stop offset="100%" stopColor="#137A43" />
+          </linearGradient>
+          <linearGradient id="starBottom" x1="260" y1="198" x2="260" y2="232" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#137A43" />
+            <stop offset="100%" stopColor="#0B4B27" />
+          </linearGradient>
+          <linearGradient id="starLeft" x1="238" y1="198" x2="260" y2="198" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#189953" />
+            <stop offset="100%" stopColor="#0D5E32" />
+          </linearGradient>
+          <linearGradient id="starRight" x1="260" y1="198" x2="282" y2="198" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#12743F" />
+            <stop offset="100%" stopColor="#083E1F" />
+          </linearGradient>
+
+          <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="14" />
+            <feOffset dx="0" dy="16" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.10" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Ambient Ground Shadow */}
+        <ellipse cx="255" cy="358" rx="145" ry="24" fill="#000000" opacity="0.06" filter="blur(16px)" />
+        <ellipse cx="270" cy="352" rx="95" ry="16" fill="#000000" opacity="0.07" filter="blur(8px)" />
+
+        {/* Outer Orbital Ring - Back Segment */}
+        <path 
+          d="M 105 210 C 125 150 345 140 405 195" 
+          stroke="#137A43" 
+          strokeWidth="1.25" 
+          opacity="0.45"
+          fill="none" 
+        />
+        {/* Rear Node on Outer Ring */}
+        <circle cx="365" cy="160" r="4.5" fill="#137A43" />
+
+        {/* Inner Orbital Ring - Back Segment */}
+        <path 
+          d="M 145 210 C 165 168 325 162 375 200" 
+          stroke="#137A43" 
+          strokeWidth="1" 
+          opacity="0.3"
+          strokeDasharray="3 3"
+          fill="none" 
+        />
+
+        {/* 3D WHITE SCULPTURAL ARCH */}
+        <g filter="url(#softShadow)">
+          {/* Back Pillar / Inner Loop */}
+          <path 
+            d="M 190 230 C 190 135 240 85 282 85 C 322 85 352 130 352 235 C 352 305 328 340 288 340 C 276 340 266 325 266 305 C 266 290 276 275 292 265 C 308 255 312 225 312 175 C 312 130 292 115 276 115 C 250 115 222 145 222 235 L 190 230 Z" 
+            fill="url(#archInnerGrad)" 
+          />
+
+          {/* Front Sweeping Ribbon Loop */}
+          <path 
+            d="M 170 315 C 155 245 178 135 235 90 C 270 60 322 70 342 115 C 362 160 352 265 322 315 C 306 340 276 345 256 325 C 240 310 245 285 260 270 C 280 250 295 205 295 150 C 295 115 270 95 245 110 C 215 130 198 195 202 275 C 205 315 180 340 170 315 Z" 
+            fill="url(#archFrontGrad)" 
+          />
+
+          {/* Arch Light Crease Reflection */}
+          <path 
+            d="M 175 285 C 180 195 212 120 248 100 C 285 80 325 100 336 140 C 346 180 332 265 306 310" 
+            stroke="#FFFFFF" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            opacity="0.9" 
+            fill="none" 
+          />
+        </g>
+
+        {/* Inner Orbital Ring - Front Segment */}
+        <path 
+          d="M 145 210 C 125 255 305 270 375 200" 
+          stroke="#137A43" 
+          strokeWidth="1" 
+          opacity="0.4"
+          fill="none" 
+        />
+
+        {/* Outer Orbital Ring - Front Segment */}
+        <path 
+          d="M 105 210 C 75 275 335 295 405 195" 
+          stroke="#137A43" 
+          strokeWidth="1.5" 
+          opacity="0.75"
+          fill="none" 
+        />
+
+        {/* Orbit Nodes on Front Segment */}
+        <circle cx="115" cy="230" r="5" fill="#137A43" />
+        <circle cx="362" cy="240" r="5.5" fill="#137A43" />
+
+        {/* CENTERPIECE 4-POINT EMERALD STAR */}
+        <g transform="translate(262, 210) scale(1.15)">
+          <circle cx="0" cy="0" r="30" fill="#137A43" opacity="0.2" filter="blur(10px)" />
+          
+          <path d="M 0 0 L -8 -4 L 0 -28 L 0 0 Z" fill="url(#starTop)" />
+          <path d="M 0 0 L 8 -4 L 0 -28 L 0 0 Z" fill="#22C55E" opacity="0.9" />
+
+          <path d="M 0 0 L -8 4 L 0 28 L 0 0 Z" fill="url(#starBottom)" />
+          <path d="M 0 0 L 8 4 L 0 28 L 0 0 Z" fill="#137A43" />
+
+          <path d="M 0 0 L -4 -8 L -28 0 L 0 0 Z" fill="url(#starLeft)" />
+          <path d="M 0 0 L -4 8 L -28 0 L 0 0 Z" fill="#0B4B27" />
+
+          <path d="M 0 0 L 4 -8 L 28 0 L 0 0 Z" fill="url(#starRight)" />
+          <path d="M 0 0 L 4 8 L 28 0 L 0 0 Z" fill="#169A54" />
+
+          <circle cx="0" cy="0" r="1.5" fill="#FFFFFF" opacity="0.95" />
+        </g>
+      </svg>
+
+      {/* Far Right Monospace Caption matching image exactly */}
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-8 sm:translate-x-12 hidden lg:block select-none pointer-events-none">
+        <div className="text-[10px] font-mono tracking-[0.22em] text-[#7A7A75] space-y-1.5 leading-tight font-medium border-l border-[#BDBDB8] pl-3">
+          <p>SIMPLE NAMES.</p>
+          <p>REAL OWNERS.</p>
+          <p>ON-CHAIN.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Real Name Search with live on-chain contract resolution & shortcuts
+ */
+const HeroNameSearch = ({ 
+  navigateTo, 
+  navigateToProfile, 
+  auth, 
+  ans 
+}: { 
+  navigateTo: (view: string) => void;
+  navigateToProfile: (name: string) => void;
+  auth: AuthState;
+  ans: ReturnType<typeof useANS>;
+}) => {
+  const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const performCheck = useCallback(async (nameToCheck: string) => {
+    const formatted = cleanName(nameToCheck);
+    if (!formatted || formatted.length < 3) {
+      setResult(formatted.length > 0 ? { type: 'invalid' } : null);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const fullName = `${formatted}.arc`;
+
+    try {
+      const isAvail = await fallbackPublicClient.readContract({
+        address: ANS_ADDRESS,
+        abi: ANS_ABI,
+        functionName: 'isAvailable',
+        args: [formatted],
+      });
+
+      if (isAvail) {
+        setResult({ type: 'available', name: fullName, length: formatted.length, raw: formatted });
+      } else {
+        const listing = await fallbackPublicClient.readContract({
+          address: ANS_ADDRESS,
+          abi: ANS_ABI,
+          functionName: 'getListing',
+          args: [formatted],
+        });
+
+        if (listing && listing.active) {
+          setResult({
+            type: 'listed',
+            data: {
+              name: fullName,
+              seller: listing.seller,
+              price: Number(formatUnits(listing.price, 6)),
+            },
+          });
+        } else {
+          const record = await fallbackPublicClient.readContract({
+            address: ANS_ADDRESS,
+            abi: ANS_ABI,
+            functionName: 'getNameRecord',
+            args: [formatted],
+          });
+          setResult({
+            type: 'taken',
+            data: {
+              name: fullName,
+              owner: record.owner,
+              expiry: Number(record.expiry) * 1000,
+            },
+          });
+        }
+      }
+    } catch {
+      const taken = INITIAL_MOCK_NAMES.find(n => n.name === fullName);
+      const listed = INITIAL_MOCK_LISTINGS.find(l => l.name === fullName);
+      if (listed) {
+        setResult({ type: 'listed', data: listed });
+      } else if (taken) {
+        setResult({ type: 'taken', data: taken });
+      } else {
+        setResult({ type: 'available', name: fullName, length: formatted.length, raw: formatted });
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!query) {
+      setResult(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      performCheck(query);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query, performCheck]);
+
+  const handleShortcutClick = (shortcut: string) => {
+    const raw = shortcut.replace('.arc', '');
+    setQuery(raw);
+    performCheck(raw);
+  };
+
+  return (
+    <div className="w-full text-left">
+      {/* Search Input pill container matching reference */}
+      <form 
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (query.trim()) performCheck(query);
+        }} 
+        className="relative max-w-xl"
+      >
+        <div className="relative flex items-center bg-white border border-[#E5E5E2] rounded-full p-1.5 pl-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus-within:border-[#137A43] focus-within:ring-2 focus-within:ring-[#137A43]/10 transition-all">
+          <Search size={18} className="text-gray-400 mr-3 shrink-0" />
+          <input 
+            type="text" 
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for a name (e.g. alice.arc)"
+            aria-label="Search for a .arc name"
+            className="w-full bg-transparent text-sm text-[#141413] placeholder:text-gray-400 font-sans outline-none pr-3"
+            spellCheck="false"
+          />
+          <button 
+            type="submit" 
+            disabled={isSearching}
+            className="bg-[#137A43] hover:bg-[#0F6536] text-white font-medium text-sm px-7 py-2.5 rounded-full transition-colors shrink-0 disabled:opacity-60 flex items-center gap-1.5 shadow-sm active:scale-95"
+          >
+            {isSearching ? <RefreshCw size={14} className="animate-spin" /> : 'Search'}
+          </button>
+        </div>
+      </form>
+
+      {/* Popular shortcuts row matching image: Popular: alice.arc dev.arc nina.arc marketplace.arc */}
+      <div className="flex items-center flex-wrap gap-2 mt-4 text-xs font-mono">
+        <span className="text-[#8E8E89] mr-1 font-sans">Popular:</span>
+        {['alice.arc', 'dev.arc', 'nina.arc', 'marketplace.arc'].map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => handleShortcutClick(item)}
+            className="px-3.5 py-1 bg-white border border-[#E5E5E2] hover:border-[#137A43] hover:text-[#137A43] text-[#40403B] rounded-full text-xs font-mono transition-colors shadow-2xs"
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      {/* Result feedback card */}
+      <div className="mt-4 max-w-xl">
+        {isSearching && (
+          <div className="text-gray-500 font-mono text-xs flex items-center gap-2 py-2">
+            <div className="w-3.5 h-3.5 border-2 border-[#137A43] border-t-transparent rounded-full animate-spin"></div>
+            Checking on-chain availability on Arc Testnet...
+          </div>
+        )}
+
+        {!isSearching && result?.type === 'available' && (
+          <div className="bg-white border border-[#137A43]/40 p-4 rounded-2xl shadow-sm animate-in fade-in duration-150">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-[#137A43]"></span>
+                  <span className="font-serif font-bold text-gray-900 text-lg">{result.name}</span>
+                  <span className="text-[10px] font-mono text-[#137A43] bg-[#E8F5E9] border border-[#137A43]/20 px-2 py-0.5 rounded-md font-bold">
+                    Available
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 font-sans">
+                  Available to register with instant Passkey lease on Arc Testnet.
+                </p>
+              </div>
+              <button 
+                className="bg-[#137A43] hover:bg-[#0F6536] text-white py-2 px-4 text-xs font-sans font-medium rounded-full shrink-0 shadow-sm transition-all"
+                onClick={() => navigateTo('names')}
+              >
+                Register with Passkey
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isSearching && result?.type === 'taken' && (
+          <div className="bg-white border border-[#E5E5E2] p-4 rounded-2xl shadow-sm animate-in fade-in duration-150">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-serif font-bold text-gray-900 text-lg">{result.data.name}</span>
+                  <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                    Registered
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 font-mono truncate max-w-xs">
+                  Owner: {result.data.owner}
+                </p>
+              </div>
+              <button 
+                className="bg-white border border-[#E5E5E2] text-gray-800 hover:bg-gray-50 py-2 px-4 text-xs font-sans font-medium rounded-full shrink-0 shadow-sm transition-all"
+                onClick={() => navigateToProfile(result.data.name)}
+              >
+                View Profile
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isSearching && result?.type === 'listed' && (
+          <div className="bg-white border border-amber-300 p-4 rounded-2xl shadow-sm animate-in fade-in duration-150">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-serif font-bold text-gray-900 text-lg">{result.data.name}</span>
+                  <span className="text-[10px] font-mono text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-semibold">
+                    Listed: {result.data.price} USDC
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 font-sans">
+                  Available in trustless atomic escrow on Arc Testnet.
+                </p>
+              </div>
+              <button 
+                className="bg-[#141413] hover:bg-[#282826] text-white py-2 px-4 text-xs font-sans font-medium rounded-full shrink-0 shadow-sm transition-all"
+                onClick={() => navigateTo('marketplace')}
+              >
+                View Listing
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isSearching && result?.type === 'invalid' && (
+          <p className="text-xs text-amber-700 font-mono">
+            Names must contain at least 3 characters.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Five Product Capabilities Strip matching reference layout
+ */
+const ProductCapabilitiesStrip = () => {
+  const capabilities = [
+    {
+      icon: User,
+      title: "Human-readable identity",
+      desc: "Use .arc names instead of long wallet addresses.",
+    },
+    {
+      icon: Send,
+      title: "Name-based payments",
+      desc: "Send USDC to a name or wallet with confidence.",
+    },
+    {
+      icon: Store,
+      title: "Name marketplace",
+      desc: "Discover, buy, and sell names on Arc.",
+    },
+    {
+      icon: Shield,
+      title: "Profiles & reputation",
+      desc: "Build your on-chain identity and establish trust.",
+    },
+    {
+      icon: Fingerprint,
+      title: "Passkey security",
+      desc: "Secure access with Circle SDK and passkeys.",
+    },
+  ];
+
+  return (
+    <section className="border-y border-[#E5E5E2] bg-transparent relative z-10 my-4 sm:my-8">
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-[#E5E5E2]">
+          {capabilities.map((cap) => {
+            const Icon = cap.icon;
+            return (
+              <div key={cap.title} className="p-4 sm:px-6 flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon size={18} strokeWidth={2} />
+                </div>
+                <div>
+                  <h3 className="font-sans font-semibold text-gray-900 text-sm mb-1 leading-snug">
+                    {cap.title}
+                  </h3>
+                  <p className="text-gray-500 text-xs font-sans leading-relaxed">
+                    {cap.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/**
+ * Lower Homepage Section — The 3-Column Side-By-Side Grid
+ * Exact match to reference image:
+ * Card 1: Dark Identity Card with glowing wave
+ * Card 2: Featured Names Card with live testnet / spotlight data
+ * Card 3: How It Works 3-step guide
+ */
+const LowerHomeGrid = ({
+  navigateTo,
+  navigateToProfile,
+}: {
+  navigateTo: (view: string) => void;
+  navigateToProfile: (name: string) => void;
+}) => {
+  const featuredNames = [
+    { name: "alice.arc", status: "Available", price: "$12.00" },
+    { name: "nina.arc", status: "Available", price: "$8.50" },
+    { name: "dev.arc", status: "Available", price: "$15.00" },
+    { name: "marketplace.arc", status: "Available", price: "$20.00" },
+    { name: "arcx.arc", status: "Available", price: "$18.00" },
+  ];
+
+  return (
+    <section className="max-w-7xl mx-auto px-6 py-10 sm:py-14 relative z-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        
+        {/* CARD 1: Dark Identity Card */}
+        <div className="lg:col-span-1 bg-[#0F1410] rounded-2xl p-8 text-white relative overflow-hidden flex flex-col justify-between shadow-sm min-h-[420px]">
+          {/* Subtle green ambient glow and wave SVG */}
+          <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-radial from-[#137A43]/30 via-transparent to-transparent pointer-events-none" />
+          <svg className="absolute right-0 bottom-0 w-48 h-32 opacity-40 pointer-events-none" viewBox="0 0 200 120" fill="none">
+            <path d="M0 120 C60 100 120 40 200 60 L200 120 Z" fill="url(#greenWaveGrad)" />
+            <path d="M0 120 C80 90 140 30 200 50" stroke="#22C55E" strokeWidth="1.5" opacity="0.8" />
+            <defs>
+              <linearGradient id="greenWaveGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#137A43" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#22C55E" stopOpacity="0.05" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          <div>
+            <div className="inline-flex items-center gap-2 text-xs font-mono text-[#86EFAC] bg-white/5 border border-white/10 px-3 py-1 rounded-full mb-8">
+              <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+              <span>Live on Arc Network</span>
+            </div>
+
+            <h2 className="font-serif font-bold text-3xl sm:text-4xl leading-tight mb-4">
+              Your name.<br />
+              Your identity,<br />
+              <span className="text-[#22C55E]">On-chain.</span>
+            </h2>
+
+            <p className="text-gray-300 text-xs sm:text-sm leading-relaxed max-w-sm mb-6 font-sans">
+              Join the next generation of on-chain identity. Register, manage and use your .arc name across the Arc ecosystem.
+            </p>
+          </div>
+
+          <button 
+            onClick={() => navigateTo('names')}
+            className="bg-white text-gray-900 hover:bg-gray-100 font-sans font-medium text-xs px-5 py-2.5 rounded-full flex items-center gap-2 w-fit transition-all shadow-sm active:scale-95"
+          >
+            <span>Get Started</span>
+            <ArrowRightIcon size={14} />
+          </button>
+        </div>
+
+        {/* RIGHT 2 COLUMNS: Featured Names & How It Works unified container matching reference */}
+        <div className="lg:col-span-2 bg-white border border-[#E5E5E2] rounded-2xl grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#E5E5E2] shadow-sm overflow-hidden">
+          
+          {/* Card 2: Featured Names */}
+          <div className="p-6 sm:p-7 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-sans font-semibold text-gray-900 text-sm">Featured Names</h3>
+                <button 
+                  onClick={() => navigateTo('marketplace')}
+                  className="text-xs font-mono text-[#137A43] hover:underline flex items-center gap-1 font-medium"
+                >
+                  <span>View all</span>
+                  <ArrowRightIcon size={12} />
+                </button>
+              </div>
+
+              <div className="divide-y divide-[#F0F0EE]">
+                {featuredNames.map((item) => (
+                  <div 
+                    key={item.name}
+                    onClick={() => {
+                      const raw = item.name.replace('.arc', '');
+                      navigateTo('names');
+                    }}
+                    className="py-3 flex items-center justify-between group cursor-pointer hover:bg-[#FBFBFA] px-2 rounded-lg transition-colors"
+                  >
+                    <span className="font-mono text-sm font-semibold text-gray-900 group-hover:text-[#137A43] transition-colors">
+                      {item.name}
+                    </span>
+                    
+                    <div className="flex items-center gap-3">
+                      <span className="bg-[#E8F5E9] text-[#137A43] font-mono text-[11px] px-2.5 py-0.5 rounded-md font-semibold">
+                        {item.status}
+                      </span>
+                      <span className="font-mono text-xs text-gray-700 flex items-center gap-1 group-hover:text-[#137A43] transition-colors">
+                        {item.price}
+                        <ArrowRightIcon size={11} className="text-gray-400 group-hover:text-[#137A43] group-hover:translate-x-0.5 transition-all" />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: How It Works */}
+          <div className="p-6 sm:p-7 flex flex-col justify-between bg-white/40">
+            <div>
+              <span className="text-[11px] font-mono font-bold tracking-widest text-[#137A43] uppercase block mb-2">
+                HOW IT WORKS
+              </span>
+              <h2 className="font-serif font-bold text-2xl sm:text-3xl text-gray-900 leading-tight mb-8">
+                Get your .arc name in just a few steps.
+              </h2>
+
+              <div className="space-y-6">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-7 h-7 rounded-full bg-[#E8F5E9] text-[#137A43] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 font-mono">
+                    1
+                  </div>
+                  <div>
+                    <h4 className="font-sans font-semibold text-sm text-gray-900">
+                      Search & check availability
+                    </h4>
+                    <p className="font-sans text-xs text-gray-500 mt-0.5">
+                      Find your perfect name in seconds.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3.5">
+                  <div className="w-7 h-7 rounded-full bg-[#E8F5E9] text-[#137A43] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 font-mono">
+                    2
+                  </div>
+                  <div>
+                    <h4 className="font-sans font-semibold text-sm text-gray-900">
+                      Register your name
+                    </h4>
+                    <p className="font-sans text-xs text-gray-500 mt-0.5">
+                      Secure it on Arc with a supported wallet.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3.5">
+                  <div className="w-7 h-7 rounded-full bg-[#E8F5E9] text-[#137A43] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 font-mono">
+                    3
+                  </div>
+                  <div>
+                    <h4 className="font-sans font-semibold text-sm text-gray-900">
+                      Start using it
+                    </h4>
+                    <p className="font-sans text-xs text-gray-500 mt-0.5">
+                      Receive payments, manage your profile and more.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
   );
 };
 
@@ -609,275 +1286,52 @@ const HomeView = ({
   return (
     <div className="w-full bg-[#FBFBFA] relative overflow-hidden min-h-screen">
       
-      {/* PROTOCOL LEDGER HERO */}
-      <section className="relative px-6 pt-20 pb-24 md:pt-28 md:pb-32 max-w-6xl mx-auto z-10">
-        <div className="text-center max-w-4xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-[#E5E5E2] rounded-full text-xs font-mono text-gray-700 shadow-sm mb-6">
-            <span className="w-2 h-2 rounded-full bg-[#1A863A] animate-pulse"></span>
-            <span>Available on Arc</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-500 font-semibold">Chain ID 5042002</span>
-          </div>
-
-          <h1 className="text-5xl sm:text-7xl font-serif text-gray-900 tracking-tight leading-[1.08] mb-6">
-            The sovereign naming layer <br className="hidden sm:inline" />
-            for <span className="hero-green font-bold">Arc Network</span>.
-          </h1>
+      {/* HERO SECTION */}
+      <section className="relative px-6 pt-12 pb-10 md:pt-16 md:pb-14 max-w-7xl mx-auto z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           
-          <p className="text-lg sm:text-xl text-gray-600 font-sans max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
-            Replace 42-character hexadecimal addresses with human-readable cryptographic identities. Guaranteed by atomic on-chain escrow, native USDC settlement, and protocol reputation.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button variant="primary" className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto" onClick={() => navigateTo('names')}>
-              Register Namespace Record
-            </Button>
-            <Button variant="secondary" className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto" onClick={() => navigateTo('marketplace')}>
-              Browse Secondary Market
-            </Button>
-          </div>
-        </div>
-
-        {/* PROTOCOL SPECIFICATION TICKER */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-5xl mx-auto mb-16">
-          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Standard</span>
-            <div className="text-sm font-mono font-bold text-gray-900">.arc TLD Registry</div>
-            <div className="text-[11px] font-sans text-gray-500 mt-0.5">Canonical Arc Namespace</div>
-          </div>
-          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Settlement Asset</span>
-            <div className="text-sm font-mono font-bold text-gray-900">Native USDC (6 Dec)</div>
-            <div className="text-[11px] font-sans text-gray-500 mt-0.5">0x3600...0000</div>
-          </div>
-          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Quota Enforcement</span>
-            <div className="text-sm font-mono font-bold text-gray-900">3 Names / Wallet</div>
-            <div className="text-[11px] font-sans text-gray-500 mt-0.5">Anti-Hoarding Cap</div>
-          </div>
-          <div className="bg-white border border-[#E5E5E2] p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 block mb-1">Account Security</span>
-            <div className="text-sm font-mono font-bold text-gray-900">ERC-4337 Passkeys</div>
-            <div className="text-[11px] font-sans text-gray-500 mt-0.5">Zero Seed Phrases</div>
-          </div>
-        </div>
-
-        {/* PROTOCOL RESOLUTION DEMO */}
-        <div className="max-w-5xl mx-auto">
-          <Card className="border-[#E5E5E2] bg-white shadow-sm p-6 sm:p-10">
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6">
-              
-              {/* RAW HEX */}
-              <div className="flex-1 bg-[#FBFBFA] border border-[#E5E5E2] p-5 rounded-xl">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold">Raw Hexadecimal State</span>
-                  <span className="text-[10px] font-mono text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Unverified</span>
-                </div>
-                <div className="font-mono text-xs sm:text-sm text-gray-600 bg-white p-3 rounded-lg border border-[#E5E5E2] break-all select-all">
-                  0x7a82b489c09192fc34e18201bcf3928198f191fc
-                </div>
-                <p className="text-[11px] text-gray-500 font-sans mt-2">
-                  Prone to clipboard injection malware and human verification error.
-                </p>
-              </div>
-
-              {/* RESOLVER PIPELINE */}
-              <div className="flex flex-col items-center justify-center shrink-0 px-2">
-                <div className="hidden md:flex items-center gap-1.5 text-xs font-mono font-semibold text-[#1A863A] bg-[#1A863A]/10 border border-[#1A863A]/20 px-3 py-1.5 rounded-full mb-1">
-                  <span>ans.resolve()</span>
-                  <ArrowRightIcon size={13} />
-                </div>
-                <div className="md:hidden flex items-center justify-center py-1 text-[#1A863A]">
-                  <ArrowRightIcon className="rotate-90" size={20} />
-                </div>
-                <span className="text-[10px] font-mono text-gray-500">Atomic 1-Block</span>
-              </div>
-
-              {/* CANONICAL ANS IDENTITY */}
-              <div className="flex-1 bg-[#FBFBFA] border-2 border-[#1A863A] p-5 rounded-xl shadow-[0_2px_8px_rgba(26,134,58,0.08)]">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-[#1A863A] font-bold">ANS Canonical Record</span>
-                  <span className="text-[10px] font-mono text-[#1A863A] bg-[#1A863A]/10 border border-[#1A863A]/30 px-2 py-0.5 rounded font-bold">Verified</span>
-                </div>
-                <div className="font-serif text-2xl font-bold text-gray-900 bg-white p-2.5 rounded-lg border border-[#E5E5E2] flex items-center justify-between">
-                  <span>alex.arc</span>
-                  <ReputationBadge name="alex.arc" showDetails={false} />
-                </div>
-                <p className="text-[11px] text-gray-600 font-sans mt-2">
-                  Human-readable, verifiable reputation score, and direct USDC transfer target.
-                </p>
-              </div>
-
-            </div>
-          </Card>
-        </div>
-      </section>
-
-      {/* PROTOCOL ARCHITECTURE PILLARS */}
-      <section className="px-6 py-20 bg-white border-y border-[#E5E5E2] relative z-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-2">
-              Architecture & Capabilities
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 tracking-tight">
-              Constructed natively for Arc.
-            </h2>
-            <p className="text-gray-500 font-sans text-base mt-3">
-              Purpose-built smart contracts engineered for fast settlement, trustless delegation, and high-frequency payments.
+          {/* LEFT: Eyebrow, Headline, Supporting copy, Real Name Search, Shortcuts */}
+          <div className="lg:col-span-7 text-left">
+            <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-4 select-none">
+              ARC NAME SERVICE
             </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-[#E5E5E2] bg-[#FBFBFA] p-6 sm:p-8 flex flex-col">
-              <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center text-[#1A863A] mb-5 shadow-sm">
-                <User size={20} />
-              </div>
-              <h3 className="text-lg font-serif font-bold text-gray-900 mb-2">Universal Identity Resolution</h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-6 font-sans">
-                Bind an authentic .arc name to your Passkey Smart Account. Applications across Arc resolve your address in one function call.
-              </p>
-              <div className="mt-auto bg-white p-3 rounded-lg border border-[#E5E5E2] font-mono text-xs text-gray-700 flex items-center justify-between">
-                <span>alex.arc</span>
-                <span className="text-gray-400">→</span>
-                <span>0x7a82...91Fc</span>
-              </div>
-            </Card>
-
-            <Card className="border-[#E5E5E2] bg-[#FBFBFA] p-6 sm:p-8 flex flex-col">
-              <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center text-[#1A863A] mb-5 shadow-sm">
-                <CreditCard size={20} />
-              </div>
-              <h3 className="text-lg font-serif font-bold text-gray-900 mb-2">Native USDC Settlement</h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-6 font-sans">
-                Zero friction peer-to-peer payments and tips. Stream USDC directly to any .arc recipient with automatic on-chain receipt logging.
-              </p>
-              <div className="mt-auto bg-white p-3 rounded-lg border border-[#E5E5E2] font-mono text-xs text-gray-700 flex items-center justify-between">
-                <span>send 25 USDC</span>
-                <span className="text-gray-400">→</span>
-                <span className="text-[#1A863A] font-bold">bob.arc</span>
-              </div>
-            </Card>
-
-            <Card className="border-[#E5E5E2] bg-[#FBFBFA] p-6 sm:p-8 flex flex-col">
-              <div className="w-10 h-10 rounded-lg bg-white border border-[#E5E5E2] flex items-center justify-center text-[#1A863A] mb-5 shadow-sm">
-                <Shield size={20} />
-              </div>
-              <h3 className="text-lg font-serif font-bold text-gray-900 mb-2">On-Chain Reputation Registry</h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-6 font-sans">
-                Every trade, payment, and lease renewal updates ANSReputation.sol. Establish cryptographic trust verifiable by counter-parties.
-              </p>
-              <div className="mt-auto bg-white p-3 rounded-lg border border-[#E5E5E2] font-mono text-xs text-gray-700 flex items-center justify-between">
-                <span className="font-semibold text-gray-800">Tier: Elite</span>
-                <span className="text-[#1A863A] font-bold">100 / 100 Trust</span>
-              </div>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* FAIR NAMESPACE PROTOCOL SPECIFICATIONS */}
-      <section className="px-6 py-20 bg-[#FBFBFA] relative z-10">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-2">
-              Protocol Governance & Fair Use
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 tracking-tight">
-              Fair Namespace Standards
-            </h2>
-            <p className="text-gray-500 font-sans text-base mt-3">
-              Guaranteed on-chain policies to prevent domain squatting and ensure utility for actual Arc ecosystem participants.
+            <h1 className="text-4xl sm:text-6xl font-serif text-[#141413] tracking-tight leading-[1.08] mb-5">
+              The sovereign naming layer <br className="hidden sm:inline" />
+              for <span className="text-[#137A43]">Arc Network.</span>
+            </h1>
+            
+            <p className="text-base sm:text-lg text-[#60605A] font-sans max-w-lg mb-8 leading-relaxed font-normal">
+              Turn long blockchain addresses into human-readable .arc names.<br className="hidden sm:inline" />
+              Send, receive, and manage your identity — all on Arc.
             </p>
+
+            {/* Real Name Search Interaction matching reference */}
+            <HeroNameSearch 
+              navigateTo={navigateTo} 
+              navigateToProfile={navigateToProfile} 
+              auth={auth} 
+              ans={ans} 
+            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock size={16} className="text-[#1A863A]" />
-                <h4 className="font-serif font-bold text-gray-900 text-base">3-Name Wallet Quota</h4>
-              </div>
-              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
-                Smart contracts restrict every wallet to a maximum of 3 concurrent active registrations. Mass hoarding is impossible by protocol design.
-              </p>
-              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
-                <span>0x7a...91Fc</span>
-                <ArrowRightIcon size={12}/>
-                <span className="text-[#1A863A] font-bold">Max 3 .arc records</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-2 mb-2">
-                <Gift size={16} className="text-[#1A863A]" />
-                <h4 className="font-serif font-bold text-gray-900 text-base">Atomic Gift Mode</h4>
-              </div>
-              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
-                Register a name directly for a friend's address in a single transaction. Title is assigned directly to the recipient without intermediate custody.
-              </p>
-              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
-                <span>You</span>
-                <ArrowRightIcon size={12}/>
-                <span>alex.arc</span>
-                <ArrowRightIcon size={12}/>
-                <span className="text-[#1A863A] font-bold">Friend's Wallet</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-2 mb-2">
-                <Store size={16} className="text-[#1A863A]" />
-                <h4 className="font-serif font-bold text-gray-900 text-base">Trustless Escrow Marketplace</h4>
-              </div>
-              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
-                List names for sale with built-in atomic escrow. Buyers receive instant ownership while sellers receive USDC minus a standard 2.5% protocol fee.
-              </p>
-              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
-                <span>Seller Listing</span>
-                <ArrowRightIcon size={12}/>
-                <span>Atomic Escrow</span>
-                <ArrowRightIcon size={12}/>
-                <span className="text-[#1A863A] font-bold">USDC Payout</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E2] p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-2 mb-2">
-                <RefreshCw size={16} className="text-[#1A863A]" />
-                <h4 className="font-serif font-bold text-gray-900 text-base">Deterministic Expiry & Renewal</h4>
-              </div>
-              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4 font-sans">
-                Lease terms available for 3, 6, 9, or 12 months. Names can be renewed at any time before expiration to maintain permanent identity continuity.
-              </p>
-              <div className="font-mono text-xs text-gray-600 bg-[#FBFBFA] p-2.5 rounded-lg border border-[#E5E5E2] inline-flex items-center gap-2">
-                <span>3 / 6 / 9 / 12 Months</span>
-                <ArrowRightIcon size={12}/>
-                <span className="text-[#1A863A] font-bold">Instant Renewal</span>
-              </div>
-            </div>
+          {/* RIGHT: Abstract Arc 3D Sculpture Centerpiece + Stacked Caption */}
+          <div className="lg:col-span-5 hidden md:flex items-center justify-center">
+            <ArcGeometricCenterpiece />
           </div>
+
         </div>
       </section>
 
-      {/* FINAL PROTOCOL LAUNCH CTA */}
-      <section className="px-6 py-24 bg-white border-t border-[#E5E5E2] text-center relative z-10">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 mb-4 tracking-tight">
-            Claim your .arc identity today
-          </h2>
-          <p className="text-gray-600 font-sans text-base mb-8 leading-relaxed">
-            Connect using your biometric Passkey and register your sovereign namespace on the Arc blockchain.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button variant="primary" onClick={() => navigateTo('names')} className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto">
-              Launch Namespace Registry
-            </Button>
-            <Button variant="secondary" onClick={() => navigateTo('marketplace')} className="px-8 py-3.5 text-sm font-mono font-semibold w-full sm:w-auto">
-              View Secondary Market
-            </Button>
-          </div>
-        </div>
-      </section>
+      {/* HORIZONTAL STRIP OF FIVE PRODUCT CAPABILITIES */}
+      <ProductCapabilitiesStrip />
+
+      {/* LOWER SECTION: 3-CARD SIDE-BY-SIDE GRID */}
+      <LowerHomeGrid 
+        navigateTo={navigateTo} 
+        navigateToProfile={navigateToProfile} 
+      />
+
     </div>
   );
 };
@@ -934,30 +1388,44 @@ const NamesAppView = ({
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto pt-16 pb-32 px-6">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">Find your .arc name</h1>
-        <p className="text-gray-500 font-sans text-lg">Search for an available name or explore existing identities.</p>
+    <div className="max-w-4xl mx-auto pt-14 pb-32 px-6">
+      <div className="text-center mb-10">
+        <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+          ARC NAMESPACE REGISTRY
+        </p>
+        <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4 tracking-tight">
+          Find your .arc name
+        </h1>
+        <p className="text-gray-500 font-sans text-base max-w-md mx-auto">
+          Search for an available name or explore existing identities on Arc Network.
+        </p>
       </div>
+
       <InteractiveSearch navigateToProfile={navigateToProfile} autoFocus auth={auth} ans={ans} />
       
       {recentNames.length > 0 && (
-        <div className="mt-16 pt-12 border-t border-gray-200">
+        <div className="mt-16 pt-12 border-t border-[#E5E5E2]">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-serif font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles size={20} className="text-[#1A863A]" /> Recently Registered
+              <Sparkles size={18} className="text-[#137A43]" /> Recently Registered
             </h3>
-            <span className="text-xs font-sans text-gray-400 font-medium">Verified on Arc Testnet</span>
+            <span className="text-xs font-mono text-gray-400 font-medium">Verified on Arc Testnet</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {recentNames.map(s => (
-              <Card key={s} hoverable className="p-4 flex items-center justify-between group cursor-pointer" onClick={() => navigateToProfile(s)}>
+              <div 
+                key={s} 
+                onClick={() => navigateToProfile(s)}
+                className="bg-white border border-[#E5E5E2] hover:border-[#137A43]/40 hover:shadow-md p-4 rounded-2xl flex items-center justify-between group cursor-pointer transition-all"
+              >
                 <div>
-                  <span className="font-serif font-bold text-gray-900 block group-hover:text-[#1A863A] transition-colors">{s}</span>
-                  <span className="text-[10px] font-sans text-gray-400 uppercase tracking-wider font-semibold">Active Identity</span>
+                  <span className="font-mono font-bold text-gray-900 block group-hover:text-[#137A43] transition-colors">{s}</span>
+                  <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider font-semibold">Active Identity</span>
                 </div>
-                <ArrowRightIcon size={14} className="text-gray-400 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all" />
-              </Card>
+                <div className="w-7 h-7 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] group-hover:border-[#137A43]/30 flex items-center justify-center transition-colors">
+                  <ArrowRightIcon size={12} className="text-gray-400 group-hover:text-[#137A43] group-hover:translate-x-0.5 transition-all" />
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -995,7 +1463,7 @@ const TipRecipientProfileBadge = ({ resolvedAddress }: { resolvedAddress: string
   const { profile: resolvedProfile } = useUserProfile(resolvedAddress);
   if (!resolvedProfile.displayName) return null;
   return (
-    <div className="mt-2.5 flex items-center gap-2 text-xs text-gray-700 bg-white border border-gray-200 px-3 py-1.5 rounded-xl w-fit shadow-sm">
+    <div className="mt-2.5 flex items-center gap-2 text-xs text-gray-700 bg-white border border-[#E5E5E2] px-3.5 py-1.5 rounded-full w-fit shadow-2xs">
       {resolvedProfile.avatarUrl && (
         <img src={resolvedProfile.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
       )}
@@ -1015,8 +1483,8 @@ const OwnerProfileSnippet = ({
   const { profile: ownerProfile } = useUserProfile(ownerStr);
   if (!ownerProfile.displayName && !ownerProfile.bio && !ownerProfile.avatarUrl) return null;
   return (
-    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-4">
-      <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-serif font-bold text-sm shrink-0 shadow-sm overflow-hidden">
+    <div className="mt-4 p-4 bg-[#FBFBFA] border border-[#E5E5E2] rounded-2xl flex items-start gap-4">
+      <div className="w-10 h-10 rounded-full bg-white border border-[#E5E5E2] flex items-center justify-center text-gray-900 font-serif font-bold text-sm shrink-0 shadow-sm overflow-hidden">
         {ownerProfile.avatarUrl ? (
           <img src={ownerProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -1142,20 +1610,20 @@ const MarketplaceView = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto pt-16 pb-32 px-6">
+    <div className="max-w-7xl mx-auto pt-14 pb-32 px-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6 border-b border-[#E5E5E2] pb-8">
         <div>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
-            Secondary Namespace Ledger
-          </span>
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-2 select-none">
+            SECONDARY NAMESPACE LEDGER
+          </p>
           <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">Marketplace</h1>
           <p className="text-gray-500 font-sans text-base mt-1">Discover, verify, and acquire registered .arc identities via atomic escrow.</p>
         </div>
-        <div className="flex bg-[#F5F5F3] border border-[#E5E5E2] rounded-xl p-1">
+        <div className="flex flex-wrap items-center gap-2">
           {['all', '3', '4', '5+'].map(f => (
             <button 
               key={f}
-              className={`px-4 py-2 text-xs font-mono font-semibold rounded-lg transition-all ${filter === f ? 'bg-white text-gray-900 shadow-sm border border-[#E5E5E2]' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`px-4 py-2 text-xs font-mono font-medium rounded-full transition-all border ${filter === f ? 'bg-[#141413] text-white border-[#141413] shadow-sm' : 'bg-white text-gray-700 border-[#E5E5E2] hover:border-[#137A43] hover:text-[#137A43]'}`}
               onClick={() => setFilter(f)}
             >
               {f === 'all' ? 'All Records' : `${f} Letters`}
@@ -1170,7 +1638,7 @@ const MarketplaceView = ({
           <p className="font-mono text-xs text-gray-500">Querying on-chain escrow listings on Arc Testnet...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-[#E5E5E2]">
+        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-[#E5E5E2]">
           <div className="w-14 h-14 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
             <Store size={24} />
           </div>
@@ -1193,9 +1661,9 @@ const MarketplaceView = ({
             const isOwnListing = !!(auth.address && listing.seller.toLowerCase() === auth.address.toLowerCase());
 
             return (
-              <Card key={listing.name} className="border-[#E5E5E2] bg-white shadow-sm flex flex-col p-6">
+              <Card key={listing.name} className="border-[#E5E5E2] bg-white shadow-sm flex flex-col p-6 hover:border-[#137A43]/40 transition-all">
                 <div className="flex justify-between items-start mb-8">
-                  <h3 className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#1A863A] transition-colors tracking-tight" onClick={() => navigateToProfile(listing.name)}>
+                  <h3 className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#137A43] transition-colors tracking-tight" onClick={() => navigateToProfile(listing.name)}>
                     {listing.name}
                   </h3>
                   <ReputationBadge name={listing.name} showDetails={false} />
@@ -1212,7 +1680,7 @@ const MarketplaceView = ({
                 
                 {isOwnListing ? (
                   <div className="mt-auto pt-4 border-t border-[#E5E5E2] flex flex-col xl:flex-row items-center justify-between gap-3">
-                    <span className="text-[10px] font-mono font-semibold text-[#1A863A] bg-[#1A863A]/10 px-2.5 py-1 rounded border border-[#1A863A]/20 whitespace-nowrap self-start xl:self-center">
+                    <span className="text-[10px] font-mono font-semibold text-[#137A43] bg-[#E8F5E9] px-2.5 py-1 rounded-full border border-[#137A43]/20 whitespace-nowrap self-start xl:self-center">
                       Your Listing
                     </span>
                     <div className="flex items-center gap-2 w-full xl:w-auto">
@@ -1233,9 +1701,9 @@ const MarketplaceView = ({
                     </div>
                   </div>
                 ) : selectedListing?.name === listing.name ? (
-                  <div className="mt-auto border-t border-[#E5E5E2] pt-4 bg-[#FBFBFA] -mx-6 -mb-6 p-6 rounded-b-xl">
+                  <div className="mt-auto border-t border-[#E5E5E2] pt-4 bg-[#FBFBFA] -mx-6 -mb-6 p-6 rounded-b-2xl">
                     {txState === 'success' ? (
-                      <div className="text-center py-5 text-[#1A863A] font-mono font-bold text-xs flex flex-col items-center justify-center gap-2">
+                      <div className="text-center py-5 text-[#137A43] font-mono font-bold text-xs flex flex-col items-center justify-center gap-2">
                         <CheckCircle2 size={20} strokeWidth={2.5} />
                         <span>Done! Purchase Complete</span>
                       </div>
@@ -1252,10 +1720,10 @@ const MarketplaceView = ({
                           </div>
                           <div className="flex justify-between text-gray-900 pt-2.5 border-t border-[#E5E5E2] font-bold">
                             <span>Total Settlement</span>
-                            <span className="text-[#1A863A] tabular-nums">{calculateFees(listing.price).total} USDC</span>
+                            <span className="text-[#137A43] tabular-nums">{calculateFees(listing.price).total} USDC</span>
                           </div>
-                          <div className="text-[10px] text-gray-500 font-mono mt-2 flex items-start gap-1.5 bg-white p-2 rounded border border-[#E5E5E2]">
-                            <Info size={11} className="shrink-0 mt-0.5 text-[#1A863A]" />
+                          <div className="text-[10px] text-gray-500 font-mono mt-2 flex items-start gap-1.5 bg-white p-2 rounded-xl border border-[#E5E5E2]">
+                            <Info size={11} className="shrink-0 mt-0.5 text-[#137A43]" />
                             <span>Atomic escrow guarantees instant title transfer upon settlement.</span>
                           </div>
                         </div>
@@ -1263,7 +1731,7 @@ const MarketplaceView = ({
                           <Button variant="secondary" className="px-3" onClick={() => { setSelectedListing(null); setTxState('idle'); }}>
                             <X size={15} />
                           </Button>
-                          <Button variant="primary" className="flex-1 text-xs font-mono font-semibold py-2.5" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
+                          <Button variant="accent" className="flex-1 text-xs font-mono font-semibold py-2.5" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
                             {txState === 'idle' ? 'Confirm Settlement' : txState === 'approving' ? 'Approving USDC...' : 'Executing Purchase...'}
                           </Button>
                         </div>
@@ -1272,7 +1740,7 @@ const MarketplaceView = ({
                   </div>
                 ) : (
                   <div className="mt-auto pt-4 border-t border-[#E5E5E2]">
-                    <Button variant="secondary" className="w-full text-xs font-mono font-semibold py-2.5" onClick={() => setSelectedListing(listing)}>
+                    <Button variant="secondary" className="w-full text-xs font-sans font-medium py-2.5" onClick={() => setSelectedListing(listing)}>
                       Purchase Record
                     </Button>
                   </div>
@@ -1291,12 +1759,12 @@ const PasskeySignInCard = ({ auth, actionText = "Connect your wallet" }: { auth:
     <div className="flex flex-col items-center justify-center py-24 px-6 max-w-[540px] mx-auto w-full">
       <Card className="w-full text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white border border-gray-100 p-8 sm:p-14 relative overflow-hidden group">
         {/* Subtle decorative background blur */}
-        <div className="absolute -top-32 -left-32 w-64 h-64 bg-[#1A863A]/5 rounded-full blur-3xl pointer-events-none group-hover:bg-[#1A863A]/10 transition-colors duration-700" />
-        <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-[#1A863A]/5 rounded-full blur-3xl pointer-events-none group-hover:bg-[#1A863A]/10 transition-colors duration-700" />
+        <div className="absolute -top-32 -left-32 w-64 h-64 bg-[#137A43]/5 rounded-full blur-3xl pointer-events-none group-hover:bg-[#137A43]/10 transition-colors duration-700" />
+        <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-[#137A43]/5 rounded-full blur-3xl pointer-events-none group-hover:bg-[#137A43]/10 transition-colors duration-700" />
         
-        <div className="w-20 h-20 rounded-[24px] bg-white border border-[#1A863A]/10 flex items-center justify-center mx-auto mb-8 shadow-sm relative z-10 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1A863A]/5 to-[#1A863A]/10" />
-          <Fingerprint size={36} strokeWidth={1.5} className="text-[#1A863A] relative z-10" />
+        <div className="w-20 h-20 rounded-[24px] bg-white border border-[#137A43]/10 flex items-center justify-center mx-auto mb-8 shadow-sm relative z-10 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#137A43]/5 to-[#137A43]/10" />
+          <Fingerprint size={36} strokeWidth={1.5} className="text-[#137A43] relative z-10" />
         </div>
         
         <h2 className="text-2xl sm:text-[32px] tracking-tight font-serif font-bold text-gray-900 mb-4 relative z-10">
@@ -1309,7 +1777,7 @@ const PasskeySignInCard = ({ auth, actionText = "Connect your wallet" }: { auth:
 
         <div className="flex items-center justify-center gap-2 mb-10 relative z-10">
            <span className="px-3.5 py-1.5 bg-gray-50 border border-gray-200/75 rounded-full text-[11px] font-sans font-bold text-gray-500 tracking-wider uppercase flex items-center gap-1.5 shadow-sm">
-             <Shield size={14} strokeWidth={2.5} className="text-[#1A863A]" />
+             <Shield size={14} strokeWidth={2.5} className="text-[#137A43]" />
              Uses FaceID / TouchID — No PIN Required
            </span>
         </div>
@@ -1465,9 +1933,9 @@ const MyNamesView = ({
   const usedCount = namesList.length;
 
   const StatusBadge = ({ status }: { status: string }) => {
-    if (status === 'healthy') return <span className="px-2.5 py-1 bg-[#1A863A]/10 text-[#1A863A] border border-[#1A863A]/20 rounded-full text-[10px] font-sans font-bold uppercase tracking-wider">Active</span>;
-    if (status === 'expiring') return <span className="px-2.5 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-[10px] font-sans font-bold uppercase tracking-wider flex items-center gap-1"><AlertCircle size={10}/> Expiring</span>;
-    return <span className="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-full text-[10px] font-sans font-bold uppercase tracking-wider">Expired</span>;
+    if (status === 'healthy') return <span className="px-3 py-0.5 bg-[#E8F5E9] text-[#137A43] border border-[#137A43]/20 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider">Active</span>;
+    if (status === 'expiring') return <span className="px-3 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1"><AlertCircle size={10}/> Expiring</span>;
+    return <span className="px-3 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider">Expired</span>;
   };
 
   const handleSetPrimary = (name: string) => {
@@ -1576,25 +2044,25 @@ const MyNamesView = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto pt-16 pb-32 px-6">
+    <div className="max-w-5xl mx-auto pt-14 pb-32 px-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 border-b border-[#E5E5E2] pb-8 gap-6">
         <div>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
-            Namespace Management
-          </span>
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-2 select-none">
+            IDENTITY MANAGEMENT
+          </p>
           <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">My Names</h1>
           <p className="text-gray-500 font-sans text-base mt-1">Manage, renew, delegate, and trade your active .arc identities.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {balance !== undefined && (
-            <div className="bg-white px-5 py-3 rounded-xl border border-[#E5E5E2] shadow-sm">
+            <div className="bg-white px-5 py-3 rounded-2xl border border-[#E5E5E2] shadow-sm">
               <p className="text-gray-400 text-[10px] font-mono uppercase tracking-wider font-semibold mb-1">Settlement Balance</p>
-              <p className="text-2xl font-mono text-[#1A863A] font-bold tabular-nums">
+              <p className="text-2xl font-mono text-[#137A43] font-bold tabular-nums">
                 {balance} <span className="text-gray-500 text-xs font-mono font-normal">USDC</span>
               </p>
             </div>
           )}
-          <div className="text-left sm:text-right bg-white px-5 py-3 rounded-xl border border-[#E5E5E2] shadow-sm min-w-[140px]">
+          <div className="text-left sm:text-right bg-white px-5 py-3 rounded-2xl border border-[#E5E5E2] shadow-sm min-w-[140px]">
             <div className="flex items-center justify-between sm:justify-end gap-2 mb-1">
               <span className="text-gray-400 text-[10px] font-mono uppercase tracking-wider font-semibold">Wallet Quota</span>
               <div className="flex items-center gap-1">
@@ -1603,7 +2071,7 @@ const MyNamesView = ({
                     key={i}
                     className={`w-2.5 h-2.5 rounded-sm transition-all ${
                       i < usedCount 
-                        ? 'bg-[#1A863A] shadow-sm' 
+                        ? 'bg-[#137A43] shadow-sm' 
                         : 'border border-[#E5E5E2] bg-[#F5F5F3]'
                     }`}
                     title={i < usedCount ? `Slot ${i + 1}: Registered` : `Slot ${i + 1}: Available`}
@@ -1661,17 +2129,17 @@ const MyNamesView = ({
               <div>
                 <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                   <h3 
-                    className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2 cursor-pointer hover:text-[#1A863A] transition-colors tracking-tight"
+                    className="text-2xl font-serif font-bold text-gray-900 flex items-center gap-2 cursor-pointer hover:text-[#137A43] transition-colors tracking-tight"
                     onClick={() => navigateTo('profile', nameItem.name)}
                   >
                     {nameItem.name}
                     {nameItem.isPrimary && (
-                      <span className="text-[#1A863A] text-[10px] font-mono font-semibold px-2 py-0.5 border border-[#1A863A]/25 bg-[#1A863A]/10 rounded-full uppercase tracking-wider flex items-center gap-1">
-                        <Star size={10} className="fill-[#1A863A]" /> Main
+                      <span className="text-[#137A43] text-[10px] font-mono font-semibold px-2.5 py-0.5 border border-[#137A43]/20 bg-[#E8F5E9] rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <Star size={10} className="fill-[#137A43]" /> Main
                       </span>
                     )}
                     {nameItem.listed && (
-                      <span className="text-amber-800 text-[10px] font-mono font-semibold px-2 py-0.5 border border-amber-200 bg-amber-50 rounded-full uppercase tracking-wider">
+                      <span className="text-amber-800 text-[10px] font-mono font-semibold px-2.5 py-0.5 border border-amber-200 bg-amber-50 rounded-full uppercase tracking-wider">
                         Listed
                       </span>
                     )}
@@ -1704,7 +2172,7 @@ const MyNamesView = ({
               {!nameItem.isPrimary && (
                 <button
                   onClick={() => handleSetPrimary(nameItem.name)}
-                  className="px-3 py-2 text-xs font-mono font-semibold text-gray-700 hover:text-[#1A863A] border border-[#E5E5E2] hover:border-[#1A863A]/30 rounded-lg bg-white hover:bg-[#1A863A]/5 transition-colors flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-2 text-xs font-mono font-semibold text-gray-700 hover:text-[#137A43] border border-[#E5E5E2] hover:border-[#137A43]/30 rounded-full bg-white hover:bg-[#E8F5E9]/50 transition-colors flex items-center gap-1.5 shadow-2xs"
                   title="Set as your primary main identity across Arc"
                 >
                   <Star size={12} className="text-gray-400" /> Set Main
@@ -1712,19 +2180,19 @@ const MyNamesView = ({
               )}
 
               {(nameItem.status === 'expiring' || nameItem.status === 'expired') && (
-                <Button variant="primary" className="flex-1 sm:flex-none py-2 px-3 text-xs font-mono font-semibold" onClick={() => handleRenew(nameItem.name)}>
+                <Button variant="accent" className="flex-1 sm:flex-none py-2 px-3 text-xs font-mono font-semibold" onClick={() => handleRenew(nameItem.name)}>
                   Renew
                 </Button>
               )}
               
               <div className="relative group flex-1 sm:flex-none">
-                <Button variant="secondary" className="w-full sm:w-auto px-3.5 py-2 text-xs font-mono font-semibold flex items-center justify-center gap-1.5">
+                <Button variant="secondary" className="w-full sm:w-auto px-4 py-2 text-xs font-sans font-medium flex items-center justify-center gap-1.5">
                   Manage <ChevronDown size={13} />
                 </Button>
-                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-[#E5E5E2] rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-20 py-1 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-[#E5E5E2] rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-20 py-1.5 overflow-hidden">
                   {!nameItem.isPrimary && (
                     <button onClick={() => handleSetPrimary(nameItem.name)} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
-                      <Star size={14} className="text-[#1A863A]" /> Set as Main Identity
+                      <Star size={14} className="text-[#137A43]" /> Set as Main Identity
                     </button>
                   )}
                   <button onClick={() => navigateTo('send', nameItem.name)} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
@@ -1759,7 +2227,7 @@ const MyNamesView = ({
         {namesList.length === 0 && (
           <Card className="text-center py-12 text-gray-500">
             <p className="text-base font-sans font-medium mb-4">You have not registered any .arc names yet.</p>
-            <Button variant="primary" onClick={() => navigateTo('names')} className="mx-auto text-sm">
+            <Button variant="accent" onClick={() => navigateTo('names')} className="mx-auto text-sm px-8 py-3">
               Register a Name
             </Button>
           </Card>
@@ -1768,27 +2236,27 @@ const MyNamesView = ({
 
       {transferModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md bg-white shadow-2xl relative">
+          <Card className="w-full max-w-md bg-white shadow-2xl relative rounded-2xl border-[#E5E5E2] p-8">
             <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">Transfer {transferModal.name}</h3>
             <p className="text-sm text-gray-500 font-sans mb-6">Enter the recipient's wallet address or .arc name.</p>
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Recipient</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 font-mono">Recipient</label>
                 <input
                   type="text"
                   value={transferModal.to}
                   onChange={(e) => setTransferModal(prev => ({ ...prev, to: e.target.value }))}
                   disabled={transferModal.pending}
                   placeholder="0x... or name.arc"
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF] transition-all"
+                  className="w-full p-3.5 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#137A43]/20 focus:border-[#137A43] transition-all"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={() => setTransferModal(prev => ({ ...prev, isOpen: false }))} disabled={transferModal.pending} className="px-5 py-2">
+              <Button variant="secondary" onClick={() => setTransferModal(prev => ({ ...prev, isOpen: false }))} disabled={transferModal.pending} className="px-5 py-2.5">
                 Cancel
               </Button>
-              <Button variant="primary" onClick={submitTransfer} disabled={!transferModal.to || transferModal.pending} className="px-5 py-2">
+              <Button variant="accent" onClick={submitTransfer} disabled={!transferModal.to || transferModal.pending} className="px-5 py-2.5">
                 {transferModal.pending ? 'Transferring...' : 'Transfer Name'}
               </Button>
             </div>
@@ -1798,12 +2266,12 @@ const MyNamesView = ({
 
       {listingModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md bg-white shadow-2xl relative">
+          <Card className="w-full max-w-md bg-white shadow-2xl relative rounded-2xl border-[#E5E5E2] p-8">
             <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">List {listingModal.name} for Sale</h3>
             <p className="text-sm text-gray-500 font-sans mb-6">Set a price in USDC. A 2.5% protocol fee will be deducted from your proceeds upon sale.</p>
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Price (USDC)</label>
+                <label className="block text-xs font-mono font-bold text-gray-700 uppercase tracking-wider mb-2">Price (USDC)</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -1813,17 +2281,17 @@ const MyNamesView = ({
                     onChange={(e) => setListingModal(prev => ({ ...prev, price: e.target.value }))}
                     disabled={listingModal.pending}
                     placeholder="50"
-                    className="w-full p-3 pl-4 pr-16 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#0052FF]/20 focus:border-[#0052FF] transition-all"
+                    className="w-full p-3.5 pl-4 pr-16 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#137A43]/20 focus:border-[#137A43] transition-all"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">USDC</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-gray-400 font-medium text-xs">USDC</span>
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={() => setListingModal(prev => ({ ...prev, isOpen: false }))} disabled={listingModal.pending} className="px-5 py-2">
+              <Button variant="secondary" onClick={() => setListingModal(prev => ({ ...prev, isOpen: false }))} disabled={listingModal.pending} className="px-5 py-2.5">
                 Cancel
               </Button>
-              <Button variant="primary" onClick={submitListing} disabled={!listingModal.price || listingModal.pending} className="px-5 py-2">
+              <Button variant="accent" onClick={submitListing} disabled={!listingModal.price || listingModal.pending} className="px-5 py-2.5">
                 {listingModal.pending ? 'Listing...' : 'List for Sale'}
               </Button>
             </div>
@@ -1915,12 +2383,12 @@ const SendView = ({
 
   if (step === 'success') {
     return (
-      <div className="max-w-lg mx-auto pt-20 px-6 pb-32">
-        <Card className="text-center py-12 border-[#1A863A]/20 bg-[#1A863A]/5 shadow-sm p-8">
-          <div className="w-14 h-14 rounded-full bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center mx-auto mb-5">
+      <div className="max-w-lg mx-auto pt-16 px-6 pb-32">
+        <Card className="text-center py-12 border-[#137A43]/20 bg-[#E8F5E9]/30 shadow-sm p-8">
+          <div className="w-14 h-14 rounded-full bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mx-auto mb-5">
             <Check size={28} strokeWidth={2.5} />
           </div>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[#1A863A] font-bold block mb-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#137A43] font-bold block mb-1">
             Settlement Confirmed
           </span>
           <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">Payment Dispatched</h3>
@@ -1937,7 +2405,7 @@ const SendView = ({
                 View on Arc Explorer <ArrowUpRight size={13}/>
               </Button>
             )}
-            <Button variant="primary" onClick={() => { setStep('edit'); setRecipient(''); setAmount(''); setNote(''); setTxStatus('idle'); }} className="w-full py-3 text-xs font-mono font-semibold">
+            <Button variant="accent" onClick={() => { setStep('edit'); setRecipient(''); setAmount(''); setNote(''); setTxStatus('idle'); }} className="w-full py-3 text-xs font-sans font-medium">
               Execute Another Payment
             </Button>
           </div>
@@ -1947,13 +2415,13 @@ const SendView = ({
   }
 
   return (
-    <div className="max-w-2xl mx-auto pt-16 pb-32 px-6">
+    <div className="max-w-2xl mx-auto pt-14 pb-32 px-6">
       <div className="mb-10 border-b border-[#E5E5E2] pb-8">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 font-semibold block mb-1">
-          Direct USDC Settlement Console
-        </span>
+        <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-2 select-none">
+          DIRECT USDC SETTLEMENT CONSOLE
+        </p>
         <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">Send Payment</h1>
-        <p className="text-gray-500 font-sans text-base mt-1">Transfer USDC directly using verifiable .arc names instead of 42-character raw addresses.</p>
+        <p className="text-gray-500 font-sans text-base mt-1">Transfer USDC directly using verifiable .arc names instead of long wallet addresses.</p>
       </div>
 
       <Card className="border-[#E5E5E2] bg-white shadow-sm p-6 sm:p-8">
@@ -1969,14 +2437,14 @@ const SendView = ({
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
                   placeholder="e.g. alex.arc or 0x..."
-                  className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono text-lg p-3.5 pl-4 rounded-xl focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
+                  className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono text-lg p-3.5 pl-4 rounded-xl focus:outline-none focus:border-[#137A43] focus:bg-white transition-all"
                 />
                 {isResolved && (
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs bg-white px-2.5 py-1 rounded-lg border border-[#E5E5E2] shadow-sm">
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs bg-white px-2.5 py-1 rounded-full border border-[#E5E5E2] shadow-2xs">
                     <span className="font-mono text-gray-600 text-xs tabular-nums">
                       {resolvedAddress?.startsWith('0x') && resolvedAddress.length === 42 ? `${resolvedAddress.slice(0, 6)}...${resolvedAddress.slice(-4)}` : resolvedAddress}
                     </span>
-                    <CheckCircle2 size={14} className="text-[#1A863A]" />
+                    <CheckCircle2 size={14} className="text-[#137A43]" />
                   </div>
                 )}
               </div>
@@ -2002,7 +2470,7 @@ const SendView = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono text-3xl font-bold p-3.5 pl-4 rounded-xl focus:outline-none focus:border-gray-900 focus:bg-white transition-all tabular-nums"
+                  className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono text-3xl font-bold p-3.5 pl-4 rounded-xl focus:outline-none focus:border-[#137A43] focus:bg-white transition-all tabular-nums"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-sm text-gray-400 font-bold">
                   USDC
@@ -2013,9 +2481,9 @@ const SendView = ({
                   <button 
                     key={amt}
                     onClick={() => setAmount(amt.toString())}
-                    className="py-2 text-xs font-mono font-semibold border border-[#E5E5E2] rounded-lg text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors bg-white shadow-sm tabular-nums"
+                    className="py-2 text-xs font-mono font-semibold border border-[#E5E5E2] rounded-full text-gray-700 hover:border-[#137A43] hover:text-[#137A43] transition-colors bg-white shadow-2xs tabular-nums"
                   >
-                    {amt}
+                    ${amt}
                   </button>
                 ))}
               </div>
@@ -2030,15 +2498,15 @@ const SendView = ({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Reference or memo for counterparty..."
-                className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono p-3 pl-4 rounded-xl focus:outline-none focus:border-gray-900 focus:bg-white transition-all text-xs"
+                className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-mono p-3 pl-4 rounded-xl focus:outline-none focus:border-[#137A43] focus:bg-white transition-all text-xs"
                 maxLength={60}
               />
             </div>
 
             <div className="pt-2">
               <Button 
-                variant="primary"
-                className="w-full py-3.5 text-sm font-mono font-semibold" 
+                variant="accent"
+                className="w-full py-3.5 text-sm font-sans font-medium" 
                 onClick={handleReview}
                 disabled={!recipient || !amount}
               >
@@ -2050,13 +2518,13 @@ const SendView = ({
           <div className="space-y-6">
             <div className="border-b border-[#E5E5E2] pb-4 flex items-center justify-between">
               <h3 className="text-gray-900 font-serif font-bold text-lg flex items-center gap-2">
-                <CreditCard size={18} className="text-[#1A863A]"/> Settlement Order Verification
+                <CreditCard size={18} className="text-[#137A43]"/> Settlement Order Verification
               </h3>
               <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider font-semibold">Atomic Transfer</span>
             </div>
             
             <div className="space-y-4 font-mono">
-              <div className="bg-[#FBFBFA] border border-[#E5E5E2] p-4 rounded-xl">
+              <div className="bg-[#FBFBFA] border border-[#E5E5E2] p-4 rounded-2xl">
                 <span className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold block mb-1.5">Recipient Target</span>
                 <div className="flex justify-between items-center">
                   <div>
@@ -2075,7 +2543,7 @@ const SendView = ({
               </div>
 
               {note && (
-                <div className="bg-[#FBFBFA] p-3 rounded-lg border border-[#E5E5E2]">
+                <div className="bg-[#FBFBFA] p-3 rounded-xl border border-[#E5E5E2]">
                   <span className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold block mb-1">On-Chain Memo</span>
                   <p className="text-gray-900 text-xs italic">"{note}"</p>
                 </div>
@@ -2086,7 +2554,7 @@ const SendView = ({
               <Button variant="secondary" onClick={() => setStep('edit')} disabled={txStatus !== 'idle'} className="px-5 text-xs font-mono">
                 Back
               </Button>
-              <Button variant="primary" className="flex-1 py-3 text-xs font-mono font-semibold" onClick={handleConfirm} disabled={txStatus !== 'idle'}>
+              <Button variant="accent" className="flex-1 py-3 text-xs font-mono font-semibold" onClick={handleConfirm} disabled={txStatus !== 'idle'}>
                 {txStatus === 'idle' && 'Authorize Transfer via Passkey'}
                 {txStatus === 'approving' && 'Approving USDC Settlement...'}
                 {txStatus === 'confirming' && 'Dispatching Payment...'}
@@ -2177,15 +2645,15 @@ const NameProfileView = ({
       <div className="max-w-2xl mx-auto pt-32 px-6 text-center pb-32">
         <h1 className="text-4xl font-serif font-bold text-gray-900 mb-4">{name} is not registered.</h1>
         <p className="text-gray-500 font-sans text-lg mb-10">This identity is available on Arc.</p>
-        <Button variant="primary" onClick={() => navigateTo('names')} className="mx-auto px-10 py-3.5">Register Now</Button>
+        <Button variant="accent" onClick={() => navigateTo('names')} className="mx-auto px-10 py-3.5">Register Now</Button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto pt-16 pb-32 px-6">
-      <Card noPadding className="overflow-hidden shadow-lg border-gray-200">
-        <div className="bg-white p-8 md:p-12 border-b border-gray-100 flex flex-col md:flex-row items-start md:items-end justify-between gap-8 relative overflow-hidden">
+    <div className="max-w-4xl mx-auto pt-14 pb-32 px-6">
+      <Card noPadding className="overflow-hidden shadow-sm border-[#E5E5E2] rounded-2xl">
+        <div className="bg-white p-8 md:p-12 border-b border-[#E5E5E2] flex flex-col md:flex-row items-start md:items-end justify-between gap-8 relative overflow-hidden">
           
           <div className="z-10 w-full">
             <h1 className="text-5xl md:text-6xl font-serif font-bold text-gray-900 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 tracking-tight">
@@ -2207,7 +2675,7 @@ const NameProfileView = ({
             <div className="mt-3">
               <button
                 onClick={() => navigateTo('userprofile', ownerStr)}
-                className="text-xs font-sans font-semibold text-[#1A863A] hover:underline flex items-center gap-1"
+                className="text-xs font-sans font-semibold text-[#137A43] hover:underline flex items-center gap-1"
               >
                 View owner profile →
               </button>
@@ -2217,11 +2685,11 @@ const NameProfileView = ({
           </div>
           
           <div className="flex flex-col gap-2.5 w-full md:w-auto z-10 shrink-0">
-            <Button variant="primary" onClick={() => navigateTo('send', name)} className="w-full md:w-auto py-3 px-5 text-xs font-mono font-semibold">
+            <Button variant="accent" onClick={() => navigateTo('send', name)} className="w-full md:w-auto py-3 px-6 text-xs font-sans font-medium">
               <Send size={13} className="mr-1.5 inline" /> Send Payment
             </Button>
             {listingPrice !== null && (
-              <Button variant="accent" onClick={() => navigateTo('marketplace')} className="w-full md:w-auto py-3 px-5 text-xs font-mono font-semibold">
+              <Button variant="primary" onClick={() => navigateTo('marketplace')} className="w-full md:w-auto py-3 px-6 text-xs font-mono font-semibold">
                 Acquire via Escrow: {listingPrice} USDC
               </Button>
             )}
@@ -2230,7 +2698,7 @@ const NameProfileView = ({
 
         <div className="p-8 md:p-12 bg-[#FBFBFA]">
           <h3 className="text-xl font-serif font-bold text-gray-900 mb-8 flex items-center gap-3">
-            <History size={18} className="text-[#1A863A]" /> Activity Ledger
+            <History size={18} className="text-[#137A43]" /> Activity Ledger
           </h3>
           
           {activities.length > 0 ? (
@@ -2239,15 +2707,15 @@ const NameProfileView = ({
                 const getActionIcon = () => {
                   switch (tx.action) {
                     case 'Registered Name':
-                      return <Shield size={18} className="text-[#1A863A]" />;
+                      return <Shield size={18} className="text-[#137A43]" />;
                     case 'Received Tip':
                       return <Zap size={18} className="text-amber-500" />;
                     case 'Bought Name':
-                      return <Store size={18} className="text-[#1A863A]" />;
+                      return <Store size={18} className="text-[#137A43]" />;
                     case 'Gifted Name':
-                      return <Gift size={18} className="text-[#1A863A]" />;
+                      return <Gift size={18} className="text-[#137A43]" />;
                     case 'Renewed Name':
-                      return <RefreshCw size={18} className="text-[#1A863A]" />;
+                      return <RefreshCw size={18} className="text-[#137A43]" />;
                     case 'Listed for Sale':
                       return <Tag size={18} className="text-gray-600" />;
                     default:
@@ -2544,7 +3012,7 @@ const UserProfileView = ({
         {/* Profile Header */}
         <div className="relative -mt-16 md:-mt-20 mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="flex flex-col gap-4 w-full md:w-auto z-10">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl border-4 border-white bg-gray-100 flex items-center justify-center text-gray-900 font-serif font-bold text-4xl shadow-2xl overflow-hidden shrink-0 relative group">
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl border-4 border-white bg-gray-100 flex items-center justify-center text-gray-900 font-serif font-bold text-4xl shadow-xl overflow-hidden shrink-0 relative group">
               {onchainAvatarUrl || profile.avatarUrl ? (
                 <img src={(onchainAvatarUrl as string) || profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
@@ -2570,7 +3038,7 @@ const UserProfileView = ({
               <div className="flex items-center gap-2 text-gray-500 font-mono text-sm mt-2">
                 <span>{targetAddress.slice(0, 6)}...{targetAddress.slice(-4)}</span>
                 <button onClick={handleCopy} title="Copy full address" className="p-1 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  {copied ? <Check size={14} className="text-[#1A863A]" /> : <Copy size={14} />}
+                  {copied ? <Check size={14} className="text-[#137A43]" /> : <Copy size={14} />}
                 </button>
                 <span className="text-gray-600 mx-1">|</span>
                 <span className="font-sans text-xs">Joined {repStats.since}</span>
@@ -2580,23 +3048,23 @@ const UserProfileView = ({
 
           <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0 z-10">
             {isOwner && (
-              <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="text-sm bg-white border-gray-200 text-gray-900 hover:bg-gray-100 hover:border-gray-300">
+              <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="text-sm bg-white border-[#E5E5E2] text-gray-900 hover:bg-gray-100">
                 <Edit3 size={16} className="mr-2" /> Edit Profile
               </Button>
             )}
-            <Button variant="secondary" onClick={handleCopy} className="text-sm bg-white border-gray-200 text-gray-900 hover:bg-gray-100 hover:border-gray-300">
+            <Button variant="secondary" onClick={handleCopy} className="text-sm bg-white border-[#E5E5E2] text-gray-900 hover:bg-gray-100">
                <Share size={16} className="mr-2" /> Share
             </Button>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-8 border-b border-gray-200 mb-8 overflow-x-auto no-scrollbar">
+        {/* Tabs with exact active green underline indicator */}
+        <div className="flex items-center gap-8 border-b border-[#E5E5E2] mb-8 overflow-x-auto no-scrollbar">
           {(['overview', 'portfolio', 'activity'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-4 text-sm font-sans font-bold capitalize whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-white text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+              className={`pb-3.5 text-sm font-sans font-medium capitalize whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-[#137A43] text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
             >
               {tab === 'portfolio' ? `Portfolio (${ownedNames.length})` : tab}
             </button>
@@ -2608,11 +3076,11 @@ const UserProfileView = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-8">
                {isEditing && isOwner ? (
-                 <form onSubmit={handleSave} className="bg-white border border-gray-200 rounded-xl p-8 space-y-6">
+                 <form onSubmit={handleSave} className="bg-white border border-[#E5E5E2] rounded-2xl p-8 space-y-6 shadow-sm">
                     <div className="flex items-center justify-between">
                       <h3 className="font-serif font-bold text-xl text-gray-900">Edit Profile</h3>
-                      <span className="text-xs text-[#1A863A] font-sans font-semibold flex items-center gap-1.5 bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
-                        <span className="w-2 h-2 rounded-full bg-[#1A863A] animate-pulse"></span>
+                      <span className="text-xs text-[#137A43] font-sans font-semibold flex items-center gap-1.5 bg-[#E8F5E9] px-2.5 py-1 rounded-full border border-[#137A43]/20">
+                        <span className="w-2 h-2 rounded-full bg-[#137A43] animate-pulse"></span>
                         Global Profile
                       </span>
                     </div>
@@ -2620,11 +3088,11 @@ const UserProfileView = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Display Name</label>
-                        <input type="text" value={formData.displayName || ''} onChange={(e) => setFormData(p => ({ ...p, displayName: e.target.value }))} placeholder="e.g. Alice Nakamoto" className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm" />
+                        <input type="text" value={formData.displayName || ''} onChange={(e) => setFormData(p => ({ ...p, displayName: e.target.value }))} placeholder="e.g. Alice Nakamoto" className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-[#137A43] text-sm" />
                       </div>
                       <div>
                         <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
-                        <input type="email" value={formData.email || ''} onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="alice@example.com" className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm" />
+                        <input type="email" value={formData.email || ''} onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="alice@example.com" className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-[#137A43] text-sm" />
                       </div>
                     </div>
 
@@ -2633,34 +3101,34 @@ const UserProfileView = ({
                         <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500">Bio</label>
                         <span className="text-xs font-mono text-gray-500">{(formData.bio?.length || 0)}/160</span>
                       </div>
-                      <textarea maxLength={160} rows={3} value={formData.bio || ''} onChange={(e) => setFormData(p => ({ ...p, bio: e.target.value }))} placeholder="Tell the community about yourself (max 160 chars)..." className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm resize-none" />
+                      <textarea maxLength={160} rows={3} value={formData.bio || ''} onChange={(e) => setFormData(p => ({ ...p, bio: e.target.value }))} placeholder="Tell the community about yourself (max 160 chars)..." className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-[#137A43] text-sm resize-none" />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Twitter Handle</label>
-                        <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-gray-50 focus-within:border-gray-400">
-                          <span className="px-3.5 py-3 text-gray-500 text-sm font-mono flex items-center bg-gray-50 border-r border-gray-200">@</span>
+                        <div className="flex rounded-xl border border-[#E5E5E2] overflow-hidden bg-[#FBFBFA] focus-within:border-[#137A43]">
+                          <span className="px-3.5 py-3 text-gray-500 text-sm font-mono flex items-center bg-[#FBFBFA] border-r border-[#E5E5E2]">@</span>
                           <input type="text" value={formData.twitter || ''} onChange={(e) => setFormData(p => ({ ...p, twitter: e.target.value.replace(/^@/, '') }))} placeholder="handle" className="w-full bg-transparent px-3 py-2 text-sm text-gray-900 focus:outline-none font-sans" />
                         </div>
                       </div>
                       <div>
                         <label className="block text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-2">Website URL</label>
-                        <input type="url" value={formData.website || ''} onChange={(e) => setFormData(p => ({ ...p, website: e.target.value }))} placeholder="https://example.com" className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-gray-400 text-sm" />
+                        <input type="url" value={formData.website || ''} onChange={(e) => setFormData(p => ({ ...p, website: e.target.value }))} placeholder="https://example.com" className="w-full bg-[#FBFBFA] border border-[#E5E5E2] text-gray-900 font-sans p-3 rounded-xl focus:outline-none focus:border-[#137A43] text-sm" />
                       </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                      <Button variant="primary" type="submit" disabled={isSavingProfile} className="text-sm px-6 bg-gray-900 text-white border-none hover:bg-gray-800">
+                      <Button variant="accent" type="submit" disabled={isSavingProfile} className="text-sm px-6">
                         {isSavingProfile ? 'Saving...' : 'Save Profile'}
                       </Button>
-                      <Button variant="secondary" type="button" disabled={isSavingProfile} onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6 bg-transparent border-gray-200 text-gray-900 hover:bg-white">
+                      <Button variant="secondary" type="button" disabled={isSavingProfile} onClick={() => { setFormData(profile); setIsEditing(false); }} className="text-sm px-6">
                         Cancel
                       </Button>
                     </div>
                  </form>
                ) : (
-                 <div className="bg-white border border-gray-200 rounded-xl p-6">
+                 <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-sm">
                     <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><Info size={14} /> About</h3>
                     {profile.bio ? (
                       <p className="text-gray-700 font-sans text-base leading-relaxed">{profile.bio}</p>
@@ -2668,7 +3136,7 @@ const UserProfileView = ({
                       <p className="text-gray-500 font-sans text-sm italic">No bio provided yet.</p>
                     )}
                     
-                    <div className="flex flex-wrap items-center gap-6 text-sm font-sans text-gray-500 pt-6 mt-6 border-t border-gray-200">
+                    <div className="flex flex-wrap items-center gap-6 text-sm font-sans text-gray-500 pt-6 mt-6 border-t border-[#E5E5E2]">
                       {isOwner && profile.email && (
                         <span className="flex items-center gap-1.5 text-gray-600" title="Private to your wallet">
                           <Mail size={16} className="text-gray-500" /> {profile.email}
@@ -2680,7 +3148,7 @@ const UserProfileView = ({
                         </a>
                       )}
                       {profile.website && (
-                        <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#1A863A] hover:underline font-medium">
+                        <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#137A43] hover:underline font-medium">
                           <ArrowUpRight size={14} /> {profile.website.replace(/^https?:\/\//, '')}
                         </a>
                       )}
@@ -2690,30 +3158,30 @@ const UserProfileView = ({
             </div>
             
             <div className="space-y-6">
-               <div className="bg-white border border-gray-200 rounded-xl p-6">
+               <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-sm">
                  <h3 className="text-xs font-sans font-bold uppercase tracking-wider text-gray-500 mb-4">Reputation Stats</h3>
                  <div className="grid grid-cols-2 gap-4">
-                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                   <div className="bg-[#FBFBFA] rounded-xl p-3 border border-[#E5E5E2]">
                      <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Member Since</p>
                      <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.since}</p>
                    </div>
-                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                   <div className="bg-[#FBFBFA] rounded-xl p-3 border border-[#E5E5E2]">
                      <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Tier</p>
                      <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.tier}</p>
                    </div>
-                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                   <div className="bg-[#FBFBFA] rounded-xl p-3 border border-[#E5E5E2]">
                      <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Trades</p>
                      <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.sales + repStats.buys}</p>
                    </div>
-                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                   <div className="bg-[#FBFBFA] rounded-xl p-3 border border-[#E5E5E2]">
                      <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500">Tips / Gifts</p>
                      <p className="text-sm font-mono font-bold text-gray-900 mt-1">{repStats.tips}</p>
                    </div>
                  </div>
                  {repStats.disputes > 0 && (
-                   <div className="mt-4 bg-red-900/20 border border-red-500/20 rounded-lg p-3 flex items-center gap-3">
-                     <AlertCircle size={16} className="text-red-400" />
-                     <p className="text-xs text-red-400 font-medium">This account has {repStats.disputes} active dispute flags.</p>
+                   <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
+                     <AlertCircle size={16} className="text-red-600 shrink-0" />
+                     <p className="text-xs text-red-700 font-medium">This account has {repStats.disputes} active dispute flags.</p>
                    </div>
                  )}
                </div>
@@ -2722,11 +3190,11 @@ const UserProfileView = ({
         )}
         
         {activeTab === 'portfolio' && (
-           <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-8">
+           <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 md:p-8 shadow-sm">
               <div className="flex flex-wrap gap-4">
                 {isNamesLoading ? (
                   <div className="flex items-center gap-2 text-sm font-sans text-gray-500">
-                    <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-[#137A43] border-t-transparent rounded-full animate-spin"></div>
                     Loading on-chain portfolio...
                   </div>
                 ) : ownedNames.length > 0 ? (
@@ -2734,10 +3202,10 @@ const UserProfileView = ({
                     <button
                       key={nameItem}
                       onClick={() => navigateTo('profile', nameItem)}
-                      className="px-5 py-3 bg-gray-50 hover:bg-gray-100 text-gray-900 border border-gray-200 rounded-xl font-mono text-sm font-semibold transition-colors flex items-center gap-3 group"
+                      className="px-5 py-3 bg-[#FBFBFA] hover:bg-white text-gray-900 border border-[#E5E5E2] hover:border-[#137A43]/50 rounded-xl font-mono text-sm font-semibold transition-all flex items-center gap-3 group shadow-2xs"
                     >
                       <span>{nameItem}</span>
-                      <ArrowRightIcon size={14} className="text-gray-500 group-hover:text-[#1A863A] transition-colors" />
+                      <ArrowRightIcon size={14} className="text-gray-500 group-hover:text-[#137A43] transition-colors" />
                     </button>
                   ))
                 ) : (
@@ -2748,13 +3216,13 @@ const UserProfileView = ({
         )}
 
         {activeTab === 'activity' && (
-          <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-8">
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 md:p-8 shadow-sm">
             {(() => {
               const userActs = getUserActivities(targetAddress);
               if (userActs.length === 0) {
                 return (
                   <div className="text-center py-12">
-                    <History size={32} className="mx-auto text-gray-600 mb-3" />
+                    <History size={32} className="mx-auto text-gray-400 mb-3" />
                     <p className="text-gray-500 text-sm">No activity recorded locally for this user yet.</p>
                   </div>
                 );
@@ -2762,10 +3230,10 @@ const UserProfileView = ({
               return (
                 <div className="space-y-4">
                   {userActs.map((tx: any) => (
-                    <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 border-b border-gray-200 last:border-0 gap-4">
+                    <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 border-b border-[#E5E5E2] last:border-0 gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 shrink-0">
-                          {tx.action.includes('Transferred') || tx.action.includes('Gifted') ? <Gift size={16} className="text-purple-400" /> : <History size={16} />}
+                        <div className="w-10 h-10 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] flex items-center justify-center text-gray-500 shrink-0">
+                          {tx.action.includes('Transferred') || tx.action.includes('Gifted') ? <Gift size={16} className="text-[#137A43]" /> : <History size={16} />}
                         </div>
                         <div>
                           <p className="text-gray-900 font-sans font-bold text-sm">{tx.action}</p>
@@ -2963,102 +3431,101 @@ export default function App() {
   };
 
   const navItems = [
+    { id: 'home', label: 'Home', icon: HomeIcon },
     { id: 'names', label: 'Names', icon: Search },
+    { id: 'send', label: 'Send', icon: Send },
     { id: 'marketplace', label: 'Marketplace', icon: Store },
     { id: 'mynames', label: 'My Names', icon: User },
-    { id: 'send', label: 'Send & Tip', icon: Send },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col selection:bg-[#1A863A]/20 text-gray-900 font-sans bg-[#FBFBFA]">
+    <div className="min-h-screen flex flex-col selection:bg-[#137A43]/20 text-gray-900 font-sans bg-[#FBFBFA]">
       <style>{globalStyles}</style>
 
-      {/* UNIFIED PROTOCOL HEADER */}
-      <header className="flex items-center justify-between px-4 sm:px-8 h-20 border-b border-[#E5E5E2] bg-white/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-6 md:gap-10">
+      {/* UNIFIED PROTOCOL HEADER MATCHING REFERENCE IMAGE */}
+      <header className="flex items-center justify-between px-6 sm:px-10 h-20 border-b border-[#E5E5E2] bg-[#FBFBFA]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex items-center gap-8 md:gap-12">
           <div 
-            className="text-gray-900 font-serif font-bold text-2xl tracking-tight cursor-pointer flex items-center gap-2 shrink-0 select-none"
+            className="cursor-pointer select-none hover:opacity-90 transition-opacity"
             onClick={() => navigateTo('home')}
           >
-            <div className="text-[#1A863A] font-mono font-bold text-lg">&lt;/&gt;</div>
-            <span>ANS</span>
+            <ANSLogo />
           </div>
-          <nav className="hidden md:flex items-center gap-1.5">
+          <nav className="hidden md:flex items-center gap-6">
             {navItems.map(item => {
               const isActive = currentView === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => navigateTo(item.id)}
-                  className={`px-3.5 py-2 rounded-lg font-mono text-xs font-semibold transition-all ${
+                  className={`relative py-2 text-sm font-sans font-medium transition-colors ${
                     isActive 
-                      ? 'text-gray-900 bg-[#F5F5F3] shadow-sm border border-[#E5E5E2]' 
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-[#F5F5F3]/60'
+                      ? 'text-[#141413] font-semibold' 
+                      : 'text-[#60605A] hover:text-[#141413]'
                   }`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#137A43] rounded-full" />
+                  )}
                 </button>
               );
             })}
           </nav>
         </div>
         
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden lg:flex items-center gap-2 text-gray-600 text-xs font-mono font-medium px-3 py-1.5 border border-[#E5E5E2] rounded-full bg-[#FBFBFA]">
-            <div className="w-2 h-2 rounded-full bg-[#1A863A]"></div>
-            <span>Arc Testnet</span>
+        <div className="flex items-center gap-3">
+          {/* Arc Network Pill matching reference */}
+          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-[#E5E5E2] rounded-full text-xs font-sans font-medium text-[#141413] shadow-2xs select-none">
+            <div className="w-2 h-2 rounded-full bg-[#137A43]"></div>
+            <span>Arc Network</span>
+            <ChevronDown size={13} className="text-[#60605A]" />
           </div>
           
           {auth.isConnected && auth.address ? (
-            <>
-              {isBalanceLoading && usdcBalanceRaw === undefined && fallbackBalance === null ? (
-                <div className="h-9 w-24 bg-gray-100 animate-pulse rounded-lg border border-[#E5E5E2]" />
-              ) : (
-                <div 
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 bg-[#FBFBFA] border border-[#E5E5E2] rounded-lg text-xs font-mono text-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-default"
-                  title="Your USDC balance on Arc Testnet"
+            <div className="flex items-center gap-2">
+              <div 
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E5E5E2] rounded-full text-xs font-mono text-gray-800 shadow-2xs cursor-default"
+                title="Your USDC balance on Arc Testnet"
+              >
+                <CreditCard size={13} className="text-[#137A43] shrink-0" />
+                <span className="font-bold text-gray-900 tabular-nums">{formattedBalance}</span>
+                <span className="text-gray-500 text-[10px]">USDC</span>
+              </div>
+
+              {currentPrimaryName && (
+                <button
+                  onClick={() => navigateTo('profile', currentPrimaryName)}
+                  title="View your main identity profile"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-900 border border-[#E5E5E2] rounded-full font-serif text-xs font-bold transition-all shadow-2xs"
                 >
-                  <CreditCard size={13} className="text-[#1A863A] shrink-0" />
-                  <span className="font-bold text-gray-900 tabular-nums">{formattedBalance}</span>
-                  <span className="text-gray-500 text-[10px] font-semibold">USDC</span>
-                </div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#137A43] shrink-0" />
+                  <span>{currentPrimaryName}</span>
+                </button>
               )}
 
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                {currentPrimaryName && (
-                  <button
-                    onClick={() => navigateTo('profile', currentPrimaryName)}
-                    title="View your main identity profile"
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#FBFBFA] text-gray-900 border border-[#E5E5E2] rounded-lg font-mono text-xs font-bold transition-all shadow-sm active:scale-95"
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#1A863A] shrink-0" />
-                    <span className="font-serif">{currentPrimaryName}</span>
-                  </button>
+              <button
+                onClick={handleCopyAddress}
+                title="Click to copy your address"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-[#E5E5E2] rounded-full font-mono text-xs font-medium transition-all shadow-2xs"
+              >
+                {copiedAddress ? (
+                  <>
+                    <Check size={13} className="text-[#137A43] shrink-0" />
+                    <span className="text-[#137A43] font-semibold">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="tabular-nums">{auth.address.slice(0, 5)}...{auth.address.slice(-4)}</span>
+                    <Copy size={11} className="text-gray-400" />
+                  </>
                 )}
-
-                <button
-                  onClick={handleCopyAddress}
-                  title="Click to copy your address"
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-white hover:bg-[#FBFBFA] text-gray-700 border border-[#E5E5E2] rounded-lg font-mono text-xs font-medium transition-all shadow-sm active:scale-95"
-                >
-                  {copiedAddress ? (
-                    <>
-                      <Check size={13} className="text-[#1A863A] shrink-0" />
-                      <span className="text-[#1A863A] font-semibold">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="tabular-nums">{auth.address.slice(0, 5)}...{auth.address.slice(-4)}</span>
-                      <Copy size={11} className="text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
-                    </>
-                  )}
-                </button>
-              </div>
+              </button>
 
               <button
                 onClick={() => navigateTo('userprofile', auth.address)}
                 title="View your public profile"
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-[#FBFBFA] border border-[#E5E5E2] rounded-lg transition-colors shadow-sm"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-[#E5E5E2] rounded-full transition-colors shadow-2xs"
               >
                 <User size={13} />
                 <span>Profile</span>
@@ -3067,34 +3534,19 @@ export default function App() {
               <button
                 onClick={() => auth.signOut()}
                 title="Sign out"
-                className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-[#E5E5E2] hover:border-red-200 rounded-lg transition-colors shadow-sm shrink-0"
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 border border-[#E5E5E2] hover:border-red-200 rounded-full transition-colors shadow-2xs shrink-0"
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
               </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="secondary"
-                onClick={() => auth.signUp()}
-                className="font-mono text-xs h-9 px-3.5 hidden sm:flex"
-                disabled={auth.isLoading}
-              >
-                Create Account
-              </Button>
-              <Button 
-                variant="primary"
-                onClick={() => auth.signIn()}
-                className="font-mono text-xs h-9 px-4"
-                disabled={auth.isLoading}
-              >
-                {auth.isLoading ? (
-                  <span className="flex items-center gap-1.5">Connecting...</span>
-                ) : (
-                  <span className="flex items-center gap-1.5">Sign In</span>
-                )}
-              </Button>
             </div>
+          ) : (
+            <button 
+              onClick={() => auth.signIn()}
+              className="bg-[#141413] hover:bg-[#282826] text-white px-5 py-2 rounded-full text-xs font-sans font-medium shadow-sm transition-all active:scale-95"
+              disabled={auth.isLoading}
+            >
+              {auth.isLoading ? 'Connecting...' : 'Connect Wallet'}
+            </button>
           )}
         </div>
       </header>
@@ -3109,36 +3561,39 @@ export default function App() {
         {currentView === 'userprofile' && userProfileTarget && <UserProfileView targetAddress={userProfileTarget} auth={auth} navigateTo={navigateTo} />}
       </main>
 
-      {currentView === 'home' && (
-        <footer className="bg-white border-t border-[#E5E5E2] py-16 px-6 pb-28 md:pb-16 z-10 relative">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-10">
-            <div>
-              <div className="text-gray-900 font-serif font-bold text-2xl flex items-center gap-2 mb-2">
-                <div className="text-[#1A863A] font-mono font-bold text-lg">&lt;/&gt;</div>
-                ANS
-              </div>
-              <p className="text-gray-500 text-xs font-mono">Arc Name Service Protocol — Arc Testnet</p>
+      {/* GLOBAL FOOTER MATCHING REFERENCE IMAGE */}
+      <footer className="border-t border-[#E5E5E2] bg-transparent py-8 px-6 sm:px-10 z-10 relative">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-xs text-gray-500 font-sans">
+            <div 
+              className="flex items-center gap-2 cursor-pointer select-none" 
+              onClick={() => navigateTo('home')}
+            >
+              <span className="text-[#137A43] font-mono font-bold text-lg leading-none">&lt;&gt;</span>
+              <span className="text-gray-900 font-sans font-bold text-lg leading-none">ANS</span>
             </div>
-            <div className="flex gap-16 md:gap-24">
-              <div className="flex flex-col gap-3 text-sm font-sans">
-                <span className="text-gray-900 mb-1 font-serif font-bold text-base">Navigation</span>
-                <button onClick={() => navigateTo('home')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Home</button>
-                <button onClick={() => navigateTo('names')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Names Registry</button>
-                <button onClick={() => navigateTo('marketplace')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Marketplace</button>
-                <button onClick={() => navigateTo('mynames')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">My Names</button>
-                <button onClick={() => navigateTo('send')} className="text-gray-500 hover:text-gray-900 text-left text-xs font-mono">Send & Tip</button>
-              </div>
-              <div className="flex flex-col gap-3 text-sm font-sans">
-                <span className="text-gray-900 mb-1 font-serif font-bold text-base">Protocol</span>
-                <a href="https://www.arc.io/network" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">Arc Network</a>
-                <a href="https://docs.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">Documentation</a>
-                <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">GitHub Repository</a>
-                <a href="https://explorer.testnet.arc.io/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 text-xs font-mono">Arc Testnet Explorer</a>
-              </div>
-            </div>
+            <span className="text-gray-500 text-center sm:text-left">
+              Third-party .arc domain service on Arc Network. Not affiliated with Arc Network or Circle.
+            </span>
           </div>
-        </footer>
-      )}
+          
+          <div className="flex items-center gap-6 text-xs text-gray-500 font-sans">
+            <button onClick={() => navigateTo('home')} className="hover:text-gray-900 transition-colors">About</button>
+            <a href="https://docs.arc.io/" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors">Docs</a>
+            <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors">Support</a>
+            <a href="https://x.com" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors text-gray-700" title="X (Twitter)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+            </a>
+            <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors text-gray-700" title="GitHub">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </footer>
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-[#E5E5E2] flex justify-around items-center pb-safe pt-2 z-50 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
@@ -3164,7 +3619,7 @@ export default function App() {
               auth.signIn();
             }
           }}
-          className={`flex flex-col items-center justify-center w-full py-1.5 mb-1 rounded-lg transition-colors ${auth.isConnected ? 'text-[#1A863A]' : 'text-gray-400'}`}
+          className={`flex flex-col items-center justify-center w-full py-1.5 mb-1 rounded-lg transition-colors ${auth.isConnected ? 'text-[#137A43]' : 'text-gray-400'}`}
         >
           <Wallet size={18} className="mb-1" strokeWidth={1.75} />
           <span className="text-[9px] font-mono font-bold">
@@ -3181,25 +3636,26 @@ export default function App() {
             
             <div className="flex justify-between items-center mb-5">
               <span className="font-serif font-bold text-xl text-gray-900">Your Wallet</span>
-              <button onClick={() => setIsMobileWalletOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg">
+              <button onClick={() => setIsMobileWalletOpen(false)} aria-label="Close wallet" className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg">
                 <X size={18} />
               </button>
             </div>
 
             <div className="space-y-4 mb-6">
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between gap-3">
+              <div className="p-4 bg-[#FBFBFA] border border-[#E5E5E2] rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400 mb-1">Smart Account</p>
+                  <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-1">Smart Account</p>
                   <p className="font-mono text-xs font-semibold text-gray-900 truncate">{auth.address}</p>
                 </div>
                 <button
                   onClick={handleCopyAddress}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-sans font-semibold text-gray-700 shadow-sm active:scale-95 shrink-0"
+                  aria-label="Copy smart account address"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#E5E5E2] rounded-full text-xs font-sans font-semibold text-gray-700 shadow-2xs active:scale-95 shrink-0 hover:border-[#137A43]/50 transition-colors"
                 >
                   {copiedAddress ? (
                     <>
-                      <Check size={14} className="text-[#1A863A]" />
-                      <span className="text-[#1A863A]">Copied!</span>
+                      <Check size={14} className="text-[#137A43]" />
+                      <span className="text-[#137A43]">Copied!</span>
                     </>
                   ) : (
                     <>
@@ -3210,12 +3666,12 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between">
+              <div className="p-4 bg-[#FBFBFA] border border-[#E5E5E2] rounded-2xl flex items-center justify-between shadow-2xs">
                 <div>
-                  <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-400 mb-1">USDC Balance</p>
-                  <p className="font-mono text-xl font-bold text-[#1A863A]">{formattedBalance} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
+                  <p className="text-[10px] font-sans font-bold uppercase tracking-wider text-gray-500 mb-1">USDC Balance</p>
+                  <p className="font-mono text-xl font-bold text-[#137A43]">{formattedBalance} <span className="text-sm font-sans text-gray-500 font-medium">USDC</span></p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-[#1A863A]/10 text-[#1A863A] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center">
                   <CreditCard size={20} />
                 </div>
               </div>
