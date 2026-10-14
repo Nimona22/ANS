@@ -1,11 +1,13 @@
 import { trackEvent } from './lib/analytics';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Search, Send, Store, Wallet, User, Check, AlertCircle, ChevronDown, 
   ArrowRightLeft, Tag, X, Shield, History, ArrowUpRight, Info, 
   Activity, Zap, CreditCard, CheckCircle2, RefreshCw, Clock, ArrowRight as ArrowRightIcon, Gift,
-  Copy, LogOut, Mail, Edit3, Star, Sparkles, Fingerprint, Home as HomeIcon
-, Camera, Share} from 'lucide-react';
+  Copy, LogOut, Mail, Edit3, Star, Fingerprint, Home as HomeIcon,
+  Camera, Share, Bell, BellDot, ShoppingCart, ExternalLink
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useReadContract } from 'wagmi';
 import { arcTestnet } from 'viem/chains';
@@ -23,12 +25,18 @@ import {
   setUserPrimaryName,
   getRecentlyRegisteredNames,
   getUserActivities,
+  syncRecentRegisteredNamesFromLogs,
 } from './lib/activity';
 import {
   fetchActiveListings,
+  getCachedActiveListings,
   addTrackedListing,
   removeTrackedListing,
+  getSoldListings,
+  recordSoldListing,
+  syncSoldListingsFromLogs,
   type MarketplaceListing,
+  type SoldListing,
 } from './lib/marketplace';
 import {
   UserProfile,
@@ -40,6 +48,7 @@ import {
   useUserProfile,
   subscribeToProfile,
 } from './lib/profile';
+import { useNotifications, addClientNotification, type ANSNotification, type SignChallengeCallback } from './lib/notifications';
 export type { UserProfile };
 export { loadProfile, saveProfile, saveProfileGlobal, fetchProfileGlobal, compressImage, useUserProfile };
 
@@ -58,7 +67,445 @@ const globalStyles = `
   .font-sans { font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
 
   .hero-green { color: #137A43; }
+
+  @keyframes snakeTicker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .animate-snake-line {
+    display: flex;
+    width: max-content;
+    animation: snakeTicker 24s linear infinite;
+  }
+
+  .animate-snake-line:hover {
+    animation-play-state: paused;
+  }
 `;
+
+// ─── Notification Bell ──────────────────────────────────────────────────────
+
+const NotificationBell = ({
+  walletAddress,
+  navigateTo,
+  signChallenge,
+}: {
+  walletAddress: string | null | undefined;
+  navigateTo: (view: string, arg?: string | null) => void;
+  /** Signs a challenge message with the wallet. Required to fetch notifications securely. */
+  signChallenge: SignChallengeCallback | null | undefined;
+}) => {
+  const { notifications, unreadCount, isLoading, isAccountUndeployed, hasCachedSession, refresh, markOneRead, markAllAsRead } = useNotifications(walletAddress, signChallenge);
+  const [open, setOpen] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState<ANSNotification | null>(null);
+
+  const kindIcon = (kind: ANSNotification['kind']) => {
+    if (kind === 'name_sold') return <Tag size={13} className="text-[#137A43]" />;
+    if (kind === 'name_bought') return <ShoppingCart size={13} className="text-[#137A43]" />;
+    if (kind === 'tip_received') return <CreditCard size={13} className="text-[#137A43]" />;
+    if (kind === 'tip_sent') return <Send size={13} className="text-[#137A43]" />;
+    if (kind === 'tx_success') return <CheckCircle2 size={13} className="text-[#137A43]" />;
+    if (kind === 'tx_failed') return <AlertCircle size={13} className="text-red-600" />;
+    return <Bell size={13} className="text-[#137A43]" />;
+  };
+
+  // Whitelist of valid view IDs the watcher can produce as notification links.
+  const VALID_NOTIFICATION_VIEWS = new Set(['marketplace', 'mynames', 'send', 'home', 'names']);
+
+  const handleNotifClick = (n: ANSNotification) => {
+    if (!n.is_read) markOneRead(n.id);
+    setSelectedNotif(n);
+    setOpen(false);
+  };
+
+  const [isResolvingTarget, setIsResolvingTarget] = useState(false);
+
+  const getActionLabel = (n: ANSNotification) => {
+    if (n.kind === 'tip_received') return 'View Sender Profile';
+    if (n.kind === 'name_sold') return 'View Buyer Profile';
+    if (n.kind === 'name_bought') return 'View Identity Profile';
+    if (n.kind === 'tip_sent') return 'View Recipient Identity';
+    if (n.link?.startsWith('userprofile:')) return 'View User Profile';
+    if (n.link?.startsWith('profile:')) return 'View Identity Profile';
+    if (n.link === 'marketplace') return 'Go to Marketplace';
+    if (n.link === 'mynames') return 'Go to My Names';
+    if (n.link === 'send') return 'Go to Send';
+    return 'Go to Destination';
+  };
+
+  const handleActionClick = async () => {
+    if (!selectedNotif) return;
+    const n = selectedNotif;
+    const link = n.link || '';
+
+    // 1. Tip Received: Must ALWAYS navigate to the sender!
+    if (n.kind === 'tip_received') {
+      setIsResolvingTarget(true);
+      try {
+        let senderAddr: string | null = null;
+        if (link.startsWith('userprofile:')) {
+          senderAddr = link.replace('userprofile:', '').trim();
+        } else {
+          // Check if body has a full 42-char address
+          const fullMatch = n.body?.match(/0x[a-fA-F0-9]{40}/i);
+          if (fullMatch) {
+            senderAddr = fullMatch[0].toLowerCase();
+          } else if (n.tx_hash) {
+            // Resolve directly from on-chain tx
+            const tx = await fallbackPublicClient.getTransaction({
+              hash: n.tx_hash as `0x${string}`,
+            });
+            if (tx?.from) senderAddr = tx.from.toLowerCase();
+          }
+        }
+
+        if (senderAddr) {
+          // Check if sender owns a primary .arc name
+          try {
+            const names = (await fallbackPublicClient.readContract({
+              address: ANS_ADDRESS,
+              abi: ANS_ABI,
+              functionName: 'getNamesByOwner',
+              args: [senderAddr as Address],
+            })) as string[];
+            if (names && names.length > 0 && names[0]) {
+              setSelectedNotif(null);
+              setIsResolvingTarget(false);
+              navigateTo('profile', names[0]);
+              return;
+            }
+          } catch {}
+
+          setSelectedNotif(null);
+          setIsResolvingTarget(false);
+          navigateTo('userprofile', senderAddr);
+          return;
+        }
+      } catch (err) {
+        console.error('[notifications] Failed to resolve sender:', err);
+      } finally {
+        setIsResolvingTarget(false);
+      }
+    }
+
+    // 2. Name Sold: Must ALWAYS navigate to the buyer!
+    if (n.kind === 'name_sold') {
+      setIsResolvingTarget(true);
+      try {
+        let buyerAddr: string | null = null;
+        if (link.startsWith('userprofile:')) {
+          buyerAddr = link.replace('userprofile:', '').trim();
+        } else {
+          const fullMatch = n.body?.match(/0x[a-fA-F0-9]{40}/i);
+          if (fullMatch) {
+            buyerAddr = fullMatch[0].toLowerCase();
+          } else if (n.tx_hash) {
+            const receipt = await fallbackPublicClient.getTransactionReceipt({
+              hash: n.tx_hash as `0x${string}`,
+            });
+            if (receipt?.from) buyerAddr = receipt.from.toLowerCase();
+          }
+        }
+
+        if (buyerAddr) {
+          try {
+            const names = (await fallbackPublicClient.readContract({
+              address: ANS_ADDRESS,
+              abi: ANS_ABI,
+              functionName: 'getNamesByOwner',
+              args: [buyerAddr as Address],
+            })) as string[];
+            if (names && names.length > 0 && names[0]) {
+              setSelectedNotif(null);
+              setIsResolvingTarget(false);
+              navigateTo('profile', names[0]);
+              return;
+            }
+          } catch {}
+
+          setSelectedNotif(null);
+          setIsResolvingTarget(false);
+          navigateTo('userprofile', buyerAddr);
+          return;
+        }
+      } catch (err) {
+        console.error('[notifications] Failed to resolve buyer:', err);
+      } finally {
+        setIsResolvingTarget(false);
+      }
+    }
+
+    // 3. Standard Navigation
+    setSelectedNotif(null);
+    setIsResolvingTarget(false);
+    if (link.startsWith('profile:')) {
+      const target = link.replace('profile:', '').trim();
+      if (target.length >= 3) navigateTo('profile', target);
+    } else if (link.startsWith('userprofile:')) {
+      const target = link.replace('userprofile:', '').trim();
+      if (target.length >= 3) navigateTo('userprofile', target);
+    } else if (VALID_NOTIFICATION_VIEWS.has(link)) {
+      navigateTo(link);
+    }
+  };
+
+  if (!walletAddress) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => {
+          setOpen((v) => {
+            const opening = !v;
+            // Only prompt passkey signature on initial open if not yet fetched in this session
+            if (opening && !hasCachedSession && notifications.length === 0) {
+              refresh(false);
+            }
+            return opening;
+          });
+        }}
+        title="Notifications"
+        className="relative p-2 text-gray-500 hover:text-gray-900 bg-white hover:bg-gray-50 border border-[#E5E5E2] rounded-full transition-colors shadow-2xs shrink-0"
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+      >
+        {unreadCount > 0 ? (
+          <BellDot size={15} className="text-[#137A43]" />
+        ) : (
+          <Bell size={15} />
+        )}
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-[#137A43] text-white text-[9px] font-mono font-bold rounded-full flex items-center justify-center px-0.5">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          {/* Click-outside overlay */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          {/* Dropdown */}
+          <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-[#E5E5E2] rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#F0F0ED]">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-sans font-bold uppercase tracking-wider text-gray-500">Notifications</span>
+                <button
+                  onClick={() => refresh(true)}
+                  disabled={isLoading}
+                  title="Sync latest notifications from blockchain (requires passkey)"
+                  className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-full hover:bg-gray-100 disabled:opacity-50"
+                >
+                  <RefreshCw size={11} className={isLoading ? 'animate-spin text-[#137A43]' : ''} />
+                </button>
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={() => markAllAsRead()}
+                  disabled={isLoading}
+                  className="text-[10px] font-sans font-semibold text-[#137A43] hover:underline disabled:opacity-50"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="max-h-[360px] overflow-y-auto divide-y divide-[#F7F7F6]">
+              {isLoading ? (
+                <div className="py-10 text-center">
+                  <div className="w-5 h-5 border-2 border-[#137A43] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 font-sans">Checking notifications...</p>
+                </div>
+              ) : isAccountUndeployed ? (
+                <div className="py-8 px-4 text-center">
+                  <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2">
+                    <Info size={16} />
+                  </div>
+                  <p className="text-xs font-semibold text-gray-800 font-sans mb-1">Account Activation Pending</p>
+                  <p className="text-[11px] text-gray-500 font-sans leading-relaxed">
+                    Passkey smart accounts activate on Arc with your first transaction (e.g. registering a name). Notifications will begin syncing automatically once activated.
+                  </p>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="py-10 text-center">
+                  <Bell size={24} className="mx-auto text-gray-200 mb-2" />
+                  <p className="text-xs text-gray-400 font-sans">No notifications yet</p>
+                  {!hasCachedSession && (
+                    <Button
+                      variant="secondary"
+                      className="text-[11px] font-sans py-1.5 px-3 mt-3 mx-auto"
+                      onClick={() => refresh(true)}
+                    >
+                      Connect & Check
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <button
+                    key={n.id}
+                    onClick={() => handleNotifClick(n)}
+                    className={`w-full text-left px-4 py-3 flex gap-3 items-start transition-colors ${
+                      n.is_read ? 'bg-white hover:bg-[#FBFBFA]' : 'bg-[#F0FAF4] hover:bg-[#E8F5E9]'
+                    }`}
+                  >
+                    {/* Kind icon */}
+                    <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-white border border-[#E5E5E2] flex items-center justify-center shadow-sm">
+                      {kindIcon(n.kind)}
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-sans leading-snug mb-0.5 ${
+                        n.is_read ? 'text-gray-700 font-medium' : 'text-gray-900 font-semibold'
+                      }`}>
+                        {n.title}
+                      </p>
+                      {n.body && (
+                        <p className="text-[10px] text-gray-500 font-sans leading-snug truncate">{n.body}</p>
+                      )}
+                      <p className="text-[9px] text-gray-400 font-mono mt-1">
+                        {new Date(n.created_at).toLocaleString(undefined, {
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    {/* Unread dot */}
+                    {!n.is_read && (
+                      <div className="w-2 h-2 rounded-full bg-[#137A43] shrink-0 mt-1" />
+                    )}
+                    {/* Link hint */}
+                    {n.link && <ExternalLink size={11} className="text-gray-300 shrink-0 mt-1" />}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Notification Detail Modal - portaled to document.body to break out of header backdrop-filter containing block */}
+      {selectedNotif && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedNotif(null);
+          }}
+        >
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#E8F5E9] border border-[#137A43]/20 flex items-center justify-center shrink-0">
+                  {selectedNotif.kind === 'name_bought' ? (
+                    <ShoppingCart size={20} className="text-[#137A43]" />
+                  ) : selectedNotif.kind === 'name_sold' ? (
+                    <Tag size={20} className="text-[#137A43]" />
+                  ) : selectedNotif.kind === 'tip_sent' ? (
+                    <Send size={20} className="text-[#137A43]" />
+                  ) : selectedNotif.kind === 'tip_received' ? (
+                    <CreditCard size={20} className="text-[#137A43]" />
+                  ) : selectedNotif.kind === 'tx_success' ? (
+                    <CheckCircle2 size={20} className="text-[#137A43]" />
+                  ) : selectedNotif.kind === 'tx_failed' ? (
+                    <AlertCircle size={20} className="text-red-600" />
+                  ) : (
+                    <Bell size={20} className="text-[#137A43]" />
+                  )}
+                </div>
+                <div>
+                  <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    selectedNotif.kind === 'tx_failed'
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-[#E8F5E9] text-[#137A43]'
+                  }`}>
+                    {selectedNotif.kind === 'name_bought'
+                      ? 'Identity Acquired'
+                      : selectedNotif.kind === 'name_sold'
+                      ? 'Identity Sold'
+                      : selectedNotif.kind === 'tip_sent'
+                      ? 'Tip Sent'
+                      : selectedNotif.kind === 'tip_received'
+                      ? 'Tip Received'
+                      : selectedNotif.kind === 'tx_success'
+                      ? 'Transaction Confirmed'
+                      : selectedNotif.kind === 'tx_failed'
+                      ? 'Transaction Failed'
+                      : 'Protocol Notification'}
+                  </span>
+                  <h3 className="font-serif font-bold text-gray-900 text-lg mt-1">{selectedNotif.title}</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedNotif(null)}
+                className="text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {selectedNotif.body && (
+              <p className="text-sm text-gray-600 font-sans leading-relaxed mb-4 bg-[#FBFBFA] p-3 rounded-xl border border-[#E5E5E2]">
+                {selectedNotif.body}
+              </p>
+            )}
+
+            <div className="space-y-2 text-xs font-mono text-gray-500 border-t border-[#F0F0ED] pt-3 mb-6">
+              <div className="flex justify-between items-center">
+                <span>Timestamp:</span>
+                <span className="text-gray-900">{new Date(selectedNotif.created_at).toLocaleString()}</span>
+              </div>
+              {selectedNotif.tx_hash && (
+                <div className="flex justify-between items-center">
+                  <span>On-Chain Tx:</span>
+                  <a
+                    href={`https://explorer.testnet.arc.io/tx/${selectedNotif.tx_hash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#137A43] hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <span>{selectedNotif.tx_hash.slice(0, 10)}...{selectedNotif.tx_hash.slice(-6)}</span>
+                    <ArrowUpRight size={12} />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="secondary"
+                className="text-xs py-2 px-4"
+                onClick={() => {
+                  setSelectedNotif(null);
+                  setIsResolvingTarget(false);
+                }}
+              >
+                Close
+              </Button>
+              {(selectedNotif.link || selectedNotif.tx_hash || selectedNotif.kind === 'tip_received' || selectedNotif.kind === 'name_sold') && (
+                <Button
+                  variant="accent"
+                  disabled={isResolvingTarget}
+                  className="text-xs py-2 px-4 flex items-center gap-1.5 disabled:opacity-60"
+                  onClick={handleActionClick}
+                >
+                  {isResolvingTarget && <RefreshCw size={12} className="animate-spin text-white" />}
+                  <span>{getActionLabel(selectedNotif)}</span>
+                  {!isResolvingTarget && <ArrowRightIcon size={14} />}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 /**
  * ANS Sovereign Geometric Logo
@@ -225,17 +672,27 @@ const InteractiveSearch = ({
   autoFocus = false, 
   isHero = false,
   auth,
-  ans 
+  ans,
+  initialQuery = '',
+  navigateTo,
 }: {
   navigateToProfile: (name: string) => void;
   autoFocus?: boolean;
   isHero?: boolean;
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
+  initialQuery?: string;
+  navigateTo?: (view: string, arg?: string) => void;
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ? cleanName(initialQuery) : '');
   const [isSearching, setIsSearching] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (initialQuery) {
+      setQuery(cleanName(initialQuery));
+    }
+  }, [initialQuery]);
 
   useEffect(() => {
     if (!query) {
@@ -346,10 +803,10 @@ const InteractiveSearch = ({
         </div>
       </form>
 
-      {/* Popular shortcuts matching the design system */}
+      {/* Popular shortcuts matching the design system with real smart contract registered names */}
       <div className="flex items-center justify-center flex-wrap gap-2 mb-8 text-xs font-mono">
         <span className="text-[#8E8E89] mr-1 font-sans">Popular:</span>
-        {['alice.arc', 'dev.arc', 'nina.arc', 'marketplace.arc'].map((item) => (
+        {getRecentlyRegisteredNames().map((item) => (
           <button
             key={item}
             type="button"
@@ -370,7 +827,7 @@ const InteractiveSearch = ({
         )}
         
         {!isSearching && result?.type === 'available' && (
-          <RegistrationProcess name={result.name} length={result.length} auth={auth} ans={ans} />
+          <RegistrationProcess name={result.name} length={result.length} auth={auth} ans={ans} navigateTo={navigateTo} />
         )}
 
         {!isSearching && result?.type === 'taken' && (
@@ -415,12 +872,14 @@ const RegistrationProcess = ({
   name, 
   length, 
   auth, 
-  ans 
+  ans,
+  navigateTo,
 }: { 
   name: string; 
   length: number; 
   auth: AuthState; 
   ans: ReturnType<typeof useANS>; 
+  navigateTo?: (view: string, arg?: string) => void;
 }) => {
   const [duration, setDuration] = useState(12);
   const [isGift, setIsGift] = useState(false);
@@ -481,11 +940,24 @@ const RegistrationProcess = ({
         timestamp: Date.now(),
         txHash: hash,
       });
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `${isGift ? 'Gift' : 'Registration'} Confirmed: ${name}.arc`,
+        body: `Successfully ${isGift ? `gifted to ${giftTarget}` : 'registered'} for ${duration} months on Arc Testnet.`,
+        tx_hash: hash,
+        link: `profile:${name}.arc`,
+      });
       toast.success(`Done! ${name} ${isGift ? 'gifted' : 'registered'} successfully!`);
     } catch (err: any) {
       console.error(err);
       const msg = err?.message || 'Transaction failed';
       setError(msg);
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `${isGift ? 'Gift' : 'Registration'} Failed: ${name}.arc`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'names',
+      });
       toast.error(msg);
       setTxStep('idle');
     } finally {
@@ -511,7 +983,18 @@ const RegistrationProcess = ({
           >
             View Tx <ArrowUpRight size={14}/>
           </Button>
-          <Button variant="accent" onClick={() => setTxStep('idle')} className="text-sm">Manage Name</Button>
+          <Button 
+            variant="accent" 
+            onClick={() => {
+              setTxStep('idle');
+              if (navigateTo) {
+                navigateTo('mynames');
+              }
+            }} 
+            className="text-sm font-semibold px-5"
+          >
+            Manage Name
+          </Button>
         </div>
       </Card>
     );
@@ -929,10 +1412,10 @@ const HeroNameSearch = ({
         </div>
       </form>
 
-      {/* Popular shortcuts row matching image: Popular: alice.arc dev.arc nina.arc marketplace.arc */}
+      {/* Popular shortcuts row with real on-chain registered names */}
       <div className="flex items-center flex-wrap gap-2 mt-4 text-xs font-mono">
         <span className="text-[#8E8E89] mr-1 font-sans">Popular:</span>
-        {['alice.arc', 'dev.arc', 'nina.arc', 'marketplace.arc'].map((item) => (
+        {getRecentlyRegisteredNames().map((item) => (
           <button
             key={item}
             type="button"
@@ -1107,15 +1590,15 @@ const LowerHomeGrid = ({
   navigateTo,
   navigateToProfile,
 }: {
-  navigateTo: (view: string) => void;
+  navigateTo: (view: string, data?: string | null) => void;
   navigateToProfile: (name: string) => void;
 }) => {
   const featuredNames = [
-    { name: "alice.arc", status: "Available", price: "$12.00" },
-    { name: "nina.arc", status: "Available", price: "$8.50" },
-    { name: "dev.arc", status: "Available", price: "$15.00" },
-    { name: "marketplace.arc", status: "Available", price: "$20.00" },
-    { name: "arcx.arc", status: "Available", price: "$18.00" },
+    { name: "arc.arc", status: "Pro", price: "15.00 USDC", tier: "3 Letters" },
+    { name: "pay.arc", status: "Pro", price: "15.00 USDC", tier: "3 Letters" },
+    { name: "dex.arc", status: "Pro", price: "15.00 USDC", tier: "3 Letters" },
+    { name: "dao.arc", status: "Pro", price: "15.00 USDC", tier: "3 Letters" },
+    { name: "gold.arc", status: "Pro", price: "9.00 USDC", tier: "4 Letters" },
   ];
 
   return (
@@ -1186,13 +1669,18 @@ const LowerHomeGrid = ({
                     key={item.name}
                     onClick={() => {
                       const raw = item.name.replace('.arc', '');
-                      navigateTo('names');
+                      navigateTo('names', raw);
                     }}
                     className="py-3 flex items-center justify-between group cursor-pointer hover:bg-[#FBFBFA] px-2 rounded-lg transition-colors"
                   >
-                    <span className="font-mono text-sm font-semibold text-gray-900 group-hover:text-[#137A43] transition-colors">
-                      {item.name}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold text-gray-900 group-hover:text-[#137A43] transition-colors">
+                        {item.name}
+                      </span>
+                      <span className="text-[10px] font-mono text-gray-400 font-medium">
+                        {item.tier}
+                      </span>
+                    </div>
                     
                     <div className="flex items-center gap-3">
                       <span className="bg-[#E8F5E9] text-[#137A43] font-mono text-[11px] px-2.5 py-0.5 rounded-md font-semibold">
@@ -1278,7 +1766,7 @@ const HomeView = ({
   auth,
   ans 
 }: { 
-  navigateTo: (view: string) => void; 
+  navigateTo: (view: string, data?: string | null) => void; 
   navigateToProfile: (name: string) => void;
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
@@ -1303,7 +1791,7 @@ const HomeView = ({
             
             <p className="text-base sm:text-lg text-[#60605A] font-sans max-w-lg mb-8 leading-relaxed font-normal">
               Turn long blockchain addresses into human-readable .arc names.<br className="hidden sm:inline" />
-              Send, receive, and manage your identity — all on Arc.
+              Send, receive, and manage your identity on Arc.
             </p>
 
             {/* Real Name Search Interaction matching reference */}
@@ -1336,20 +1824,834 @@ const HomeView = ({
   );
 };
 
+/**
+ * Comprehensive Standalone Landing / Product Presentation Page
+ * Expands the public '/' experience with complete architectural,
+ * economic, reputation, and lifecycle product documentation.
+ */
+const LandingPageView = ({ 
+  navigateTo, 
+  navigateToProfile,
+  onLaunchApp,
+  auth,
+  ans 
+}: { 
+  navigateTo: (view: string, data?: string | null) => void; 
+  navigateToProfile: (name: string) => void;
+  onLaunchApp: () => void;
+  auth: AuthState;
+  ans: ReturnType<typeof useANS>;
+}) => {
+  const scrollToSearch = () => {
+    const el = document.getElementById('hero-search-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="w-full bg-[#FBFBFA] relative overflow-hidden">
+      
+      {/* 1. TOP HERO SECTION (PRESERVED FIRST IMPRESSION) */}
+      <section id="hero-search-section" className="relative px-6 pt-12 pb-10 md:pt-16 md:pb-14 max-w-7xl mx-auto z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          {/* LEFT: Eyebrow, Headline, Supporting copy, Real Name Search, Shortcuts */}
+          <div className="lg:col-span-7 text-left">
+            <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-4 select-none">
+              ARC NAME SERVICE
+            </p>
+
+            <h1 className="text-4xl sm:text-6xl font-serif text-[#141413] tracking-tight leading-[1.08] mb-5">
+              The sovereign naming layer <br className="hidden sm:inline" />
+              for <span className="text-[#137A43]">Arc Network.</span>
+            </h1>
+            
+            <p className="text-base sm:text-lg text-[#60605A] font-sans max-w-lg mb-8 leading-relaxed font-normal">
+              Turn long blockchain addresses into human-readable .arc names.<br className="hidden sm:inline" />
+              Send, receive, and manage your identity on Arc.
+            </p>
+
+            {/* Real Name Search Interaction */}
+            <HeroNameSearch 
+              navigateTo={navigateTo} 
+              navigateToProfile={navigateToProfile} 
+              auth={auth} 
+              ans={ans} 
+            />
+          </div>
+
+          {/* RIGHT: Abstract Arc 3D Sculpture Centerpiece */}
+          <div className="lg:col-span-5 hidden md:flex items-center justify-center">
+            <ArcGeometricCenterpiece />
+          </div>
+
+        </div>
+      </section>
+
+      {/* HORIZONTAL STRIP OF FIVE PRODUCT CAPABILITIES */}
+      <ProductCapabilitiesStrip />
+
+      {/* 2. SECTION 1: WHAT IS ANS? (THE PROBLEM & SOLUTION) */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            01 / PROTOCOL OVERVIEW
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            Replacing cryptic hex hashes with human-readable .arc names.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            Every account on Arc Network is cryptographically identified by a 42-character hexadecimal address. While essential for elliptic curve signatures, raw addresses create severe friction: they cannot be memorized, are difficult to verify visually, and introduce dangerous risks of clipboard hijacking. ANS connects readable <span className="font-mono text-[#137A43] font-semibold">.arc</span> names with on-chain addresses through decentralized smart contracts.
+          </p>
+        </div>
+
+        {/* Side-by-side Comparison Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+          
+          {/* Card A: The Raw Hash Problem */}
+          <div className="bg-[#FAF9F7] border border-[#E5E5E2] rounded-2xl p-7 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#8E8E89]">
+                  Standard Arc Hex Address
+                </span>
+                <span className="text-[11px] font-mono text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                  High friction
+                </span>
+              </div>
+              <div className="bg-white border border-[#E5E5E2] rounded-xl p-3.5 font-mono text-xs text-gray-800 break-all select-all mb-5 shadow-2xs">
+                0x315EED96725dFbdDeFcdF35673634CD1eCEB9433
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-[#60605A] font-sans">
+                <li className="flex items-start gap-2.5">
+                  <span className="text-amber-600 font-bold shrink-0 mt-0.5">✕</span>
+                  <span>Impossible to remember, pronounce, or communicate verbally</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-amber-600 font-bold shrink-0 mt-0.5">✕</span>
+                  <span>Vulnerable to clipboard poisoning and look-alike address attacks</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-amber-600 font-bold shrink-0 mt-0.5">✕</span>
+                  <span>Zero identity context, verified profile data, or reputation rating</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-amber-600 font-bold shrink-0 mt-0.5">✕</span>
+                  <span>Requires manual copy-pasting and stressful multi-check verification</span>
+                </li>
+              </ul>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#E5E5E2] text-xs font-mono text-gray-400">
+              Native 20-byte account hash
+            </div>
+          </div>
+
+          {/* Card B: The ANS Solution */}
+          <div className="bg-white border-2 border-[#137A43]/30 rounded-2xl p-7 flex flex-col justify-between shadow-xs relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-radial from-[#137A43]/10 to-transparent pointer-events-none" />
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#137A43]">
+                  ANS Sovereign Identity
+                </span>
+                <span className="text-[11px] font-mono text-[#137A43] bg-[#E8F5E9] border border-[#137A43]/20 px-2 py-0.5 rounded-full font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#137A43]" />
+                  Verified .arc
+                </span>
+              </div>
+              <div className="bg-[#F7FAF8] border border-[#137A43]/20 rounded-xl p-3.5 font-mono text-sm font-bold text-[#137A43] flex items-center justify-between mb-5 shadow-2xs">
+                <span>alex.arc</span>
+                <span className="text-xs font-sans font-normal text-gray-500">→ 0x315E...9433</span>
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-[#141413] font-sans">
+                <li className="flex items-start gap-2.5">
+                  <Check size={16} className="text-[#137A43] shrink-0 mt-0.5 font-bold" />
+                  <span>Intuitive, memorable name recognized across Arc applications</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check size={16} className="text-[#137A43] shrink-0 mt-0.5 font-bold" />
+                  <span>Two-way reverse resolution binds your wallet to your primary persona</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check size={16} className="text-[#137A43] shrink-0 mt-0.5 font-bold" />
+                  <span>Integrated on-chain reputation history backed by ANSReputation.sol</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check size={16} className="text-[#137A43] shrink-0 mt-0.5 font-bold" />
+                  <span>Seamless USDC payments, custom tipping memos, and name gifting</span>
+                </li>
+              </ul>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#E5E5E2] flex items-center justify-between text-xs font-mono text-[#137A43]">
+              <span>Arc Testnet Protocol Standard</span>
+              <span>Chain ID 5042002</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 3. SECTION 2: WHY AN .ARC IDENTITY? (PRACTICAL VALUE) */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            02 / PRACTICAL VALUE
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            Built for everyday on-chain utility, not just profile labels.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            An .arc name is a programmable on-chain asset that unlocks active capabilities throughout Arc Network. It functions as your payment routing address, your public persona, and your verified reputation passport.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <Send size={19} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+                Name-Based Payments
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                Send and receive native 6-decimal USDC using readable names instead of raw hashes. Attach on-chain message notes directly in transaction events.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-[11px] font-mono text-[#137A43] font-semibold">
+              Native USDC 6-decimal precision
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <RefreshCw size={19} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+                Two-Way Reverse Lookup
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                Designate your primary name. When your wallet connects to supported Arc dApps, the application displays your human identity instead of truncating your address.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-[11px] font-mono text-[#137A43] font-semibold">
+              reverseLookup(address) binding
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <Shield size={19} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+                Anti-Hoarding Quota
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                To prevent speculative squatters from locking up the namespace, the ArcNameService contract enforces a strict cap of 3 active names per wallet.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-[11px] font-mono text-[#137A43] font-semibold">
+              maxNamesPerWallet = 3
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <User size={19} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+                Verified Profiles
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                Attach an avatar, bio, website URL, and social presence. Profile edits require an EIP-191 personal signature and single-use challenge to prevent tampering.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-[11px] font-mono text-[#137A43] font-semibold">
+              EIP-191 signature authorized
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 4. SECTION 3: HOW ANS WORKS (THE 4-STEP LIFECYCLE) */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            03 / HOW IT WORKS
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            Four transparent steps from search to ecosystem resolution.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            The ANS protocol combines low-latency client checks with decentralized, non-custodial smart contracts deployed on Arc Testnet.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs relative">
+            <span className="font-mono font-bold text-2xl text-[#137A43]/40 block mb-4">01</span>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Search & Availability
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Query any string (minimum 3 characters). The contract checks availability in real-time and evaluates duration lease pricing based on character tier (3, 4, 5, or 6+ characters).
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs relative">
+            <span className="font-mono font-bold text-2xl text-[#137A43]/40 block mb-4">02</span>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Lease Registration
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Choose a 3, 6, 9, or 12-month lease with fixed USDC pricing. Sign via Passkey or Web3 wallet. ArcNameService.sol mints the record and records your wallet as owner.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs relative">
+            <span className="font-mono font-bold text-2xl text-[#137A43]/40 block mb-4">03</span>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Dual Resolution Binding
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              The registry writes forward resolution (name → address) for payment routing and sets your chosen primary reverse lookup (address → name) for connected dApps.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs relative">
+            <span className="font-mono font-bold text-2xl text-[#137A43]/40 block mb-4">04</span>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Ecosystem Usage
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Your name is live across Arc. Receive USDC payments, accept tips with memos, gift names to teammates, or list your name on the trustless atomic escrow marketplace.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 5. SECTION 4: ONE IDENTITY, MANY INTERACTIONS */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            04 / ON-CHAIN CAPABILITIES
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            One identity for financial routing, social context, and standing.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            Experience how an .arc identity connects multiple everyday workflows inside the ANS application.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono text-[#137A43] bg-[#E8F5E9] border border-[#137A43]/20 mb-5 font-semibold">
+                Instant Resolution
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Name-to-Name Payments
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed mb-4">
+                Enter any .arc name in the Send interface. The application resolves the target address on-chain before executing the transfer, eliminating clipboard errors entirely.
+              </p>
+            </div>
+            <div className="space-y-2 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-gray-700">
+              <div className="flex justify-between"><span>Token</span><span className="font-bold text-[#141413]">USDC (6 dec)</span></div>
+              <div className="flex justify-between"><span>Resolution</span><span className="font-bold text-[#137A43]">On-Chain Direct</span></div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono text-[#137A43] bg-[#E8F5E9] border border-[#137A43]/20 mb-5 font-semibold">
+                Event Log Memo
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Tipping with On-Chain Notes
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed mb-4">
+                Support creators, developers, or peers. Protocol tips allow you to attach an immutable memo note that is emitted in contract events and boosts counterparty reputation.
+              </p>
+            </div>
+            <div className="space-y-2 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-gray-700">
+              <div className="flex justify-between"><span>Memo Storage</span><span className="font-bold text-[#141413]">TipSent Event</span></div>
+              <div className="flex justify-between"><span>Reputation</span><span className="font-bold text-[#137A43]">+1 Tip Counter</span></div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono text-[#137A43] bg-[#E8F5E9] border border-[#137A43]/20 mb-5 font-semibold">
+                Atomic Minting
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Direct Identity Gifting
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed mb-4">
+                Onboard friends or teammates to Arc. The Gift flow enables you to fund and register an available .arc name delivered straight to the recipient's wallet in one atomic call.
+              </p>
+            </div>
+            <div className="space-y-2 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-gray-700">
+              <div className="flex justify-between"><span>Recipient Gas</span><span className="font-bold text-[#137A43]">0.00 (Funded)</span></div>
+              <div className="flex justify-between"><span>Ownership</span><span className="font-bold text-[#141413]">Immediate Transfer</span></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 6. SECTION 5: NAME OWNERSHIP AND MANAGEMENT */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            05 / ASSET MANAGEMENT
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            True digital ownership with active lifecycle governance.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            Registered names are sovereign on-chain assets governed by explicit smart contract functions on ArcNameService.sol.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Fixed Duration Leases
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Names are leased for 3, 6, 9, or 12 months. Periodic renewal prevents lost or inactive wallets from permanently locking names out of public circulation.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Proactive Renewals
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Renew your active names at any time from the 'My Names' management panel. Extensions add directly onto your existing lease without interrupting reverse resolution.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Direct Wallet Transfers
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Transfer ownership of any registered name to another Arc wallet address in a single smart contract transaction. No intermediaries or platform approvals required.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">
+              Primary Identity Toggle
+            </h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Own up to 3 names and select which one represents your address in reverse lookups. Switch your primary identity anytime in the management dashboard.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 7. SECTION 6: ATOMIC ESCROW MARKETPLACE */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            06 / TRUSTLESS MARKETPLACE
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            Peer-to-peer secondary trading with zero custodial risk.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            Buy and sell premium .arc names through smart contract escrow with instantaneous atomic settlement.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="text-xs font-mono font-bold text-[#137A43] uppercase mb-2">Escrow Contract</div>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">Non-Custodial Escrow</h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              When listing a name, the domain is held in escrow by ArcNameService.sol. The seller sets a fixed USDC price. The name cannot be moved or altered while listed.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="text-xs font-mono font-bold text-[#137A43] uppercase mb-2">Atomic Execution</div>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">Single-Block Settlement</h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              When a buyer purchases a listed name, USDC transfers to the seller and domain ownership transfers to the buyer in the exact same atomic transaction.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="text-xs font-mono font-bold text-[#137A43] uppercase mb-2">Fee Policy</div>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">2.5% Protocol Fee</h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Sellers receive 97.5% of the purchase price directly in USDC. The 250 bps (2.5%) protocol fee supports registry maintenance. No hidden charges or listing fees.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="text-xs font-mono font-bold text-[#137A43] uppercase mb-2">Seller Control</div>
+            <h3 className="font-serif font-bold text-lg text-[#141413] mb-2">Instant Delisting</h3>
+            <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+              Sellers maintain full custody autonomy. Cancel an active listing at any time with a single click to return the name to your active portfolio immediately.
+            </p>
+          </div>
+
+        </div>
+
+        <div className="mt-8 p-5 bg-[#FAF9F7] border border-[#E5E5E2] rounded-xl flex items-start gap-3.5 text-xs text-[#60605A] font-sans">
+          <Info size={16} className="text-[#137A43] shrink-0 mt-0.5" />
+          <span>
+            ANS operates with full transparency on Arc Testnet. The marketplace presents real active listings without synthetic trading volume, fake floor prices, or inflated user statistics.
+          </span>
+        </div>
+      </section>
+
+      {/* 8. SECTION 7: ON-CHAIN REPUTATION & TRUST LAYER */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            07 / REPUTATION ARCHITECTURE
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            Objective credibility derived from verifiable on-chain history.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            Backed by the dedicated ANSReputation.sol smart contract on Arc Testnet, reputation scores track objective transaction metrics rather than subjective moderation or centralized KYC.
+          </p>
+        </div>
+
+        {/* 4 Tiers Display */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-serif font-bold text-lg text-[#141413]">New</span>
+              <span className="text-[11px] font-mono text-[#60605A] bg-[#F7F7F6] border border-[#E5E5E2] px-2.5 py-0.5 rounded-full font-semibold">
+                Tier 0
+              </span>
+            </div>
+            <div className="font-mono text-xs text-[#137A43] font-bold mb-2">0 – 2 Transactions</div>
+            <p className="text-xs text-[#60605A] font-sans leading-relaxed">
+              Baseline tier assigned to newly created or inactive addresses beginning their on-chain journey.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-serif font-bold text-lg text-[#141413]">Trusted</span>
+              <span className="text-[11px] font-mono text-[#2C2C2A] bg-[#F2F2EF] border border-[#DCDCD8] px-2.5 py-0.5 rounded-full font-semibold">
+                Tier 1
+              </span>
+            </div>
+            <div className="font-mono text-xs text-[#137A43] font-bold mb-2">3 – 9 Transactions</div>
+            <p className="text-xs text-[#60605A] font-sans leading-relaxed">
+              Demonstrated history of completed name registrations, tips, gifts, or secondary sales.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-serif font-bold text-lg text-[#141413]">Verified</span>
+              <span className="text-[11px] font-mono text-[#137A43] bg-[#E8F5E9] border border-[#137A43]/20 px-2.5 py-0.5 rounded-full font-bold">
+                Tier 2
+              </span>
+            </div>
+            <div className="font-mono text-xs text-[#137A43] font-bold mb-2">10 – 24 Transactions</div>
+            <p className="text-xs text-[#60605A] font-sans leading-relaxed">
+              Established on-chain reputation with consistent protocol usage and zero unresolved disputes.
+            </p>
+          </div>
+
+          <div className="bg-white border border-[#137A43]/30 rounded-2xl p-6 shadow-2xs">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-serif font-bold text-lg text-[#0B4B27]">Elite</span>
+              <span className="text-[11px] font-mono text-[#0B4B27] bg-[#DEF2E3] border border-[#137A43]/30 px-2.5 py-0.5 rounded-full font-bold">
+                Tier 3
+              </span>
+            </div>
+            <div className="font-mono text-xs text-[#137A43] font-bold mb-2">25+ Transactions</div>
+            <p className="text-xs text-[#60605A] font-sans leading-relaxed">
+              Veteran ecosystem participant with extensive completed transactions and continuous tenure.
+            </p>
+          </div>
+
+        </div>
+
+        {/* On-Chain Metrics Ledger */}
+        <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs">
+          <h3 className="font-serif font-bold text-base text-[#141413] mb-4">
+            Metrics Tracked by ANSReputation.sol
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs font-mono">
+            <div className="p-3 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl">
+              <span className="text-gray-400 block mb-1">salesCompleted</span>
+              <span className="font-bold text-gray-800">Marketplace Sales</span>
+            </div>
+            <div className="p-3 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl">
+              <span className="text-gray-400 block mb-1">purchasesCompleted</span>
+              <span className="font-bold text-gray-800">Acquisitions</span>
+            </div>
+            <div className="p-3 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl">
+              <span className="text-gray-400 block mb-1">tipsGiftsGiven</span>
+              <span className="font-bold text-gray-800">Tips & Gifts Sent</span>
+            </div>
+            <div className="p-3 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl">
+              <span className="text-gray-400 block mb-1">memberSince</span>
+              <span className="font-bold text-gray-800">Initial Block Time</span>
+            </div>
+            <div className="p-3 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl">
+              <span className="text-gray-400 block mb-1">disputeFlags</span>
+              <span className="font-bold text-gray-800">Dispute Flags (0)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. SECTION 8: BUILT FOR ON-CHAIN IDENTITY (PASSKEYS & SMART ACCOUNTS) */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-b border-[#E5E5E2]">
+        <div className="max-w-3xl mb-12">
+          <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
+            08 / INFRASTRUCTURE & SECURITY
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-[#141413] tracking-tight leading-[1.15] mb-4">
+            Engineered for modern Web3: Seedless, biometric, and secure.
+          </h2>
+          <p className="text-base sm:text-lg text-[#60605A] font-sans leading-relaxed">
+            ANS is built natively on Arc Network with account abstraction, biometric passkeys, and cryptographic authorization standards.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <Fingerprint size={20} />
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Circle Passkey Smart Accounts (ERC-4337)
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                Create a modular smart account in seconds using FaceID, TouchID, or Windows Hello. Passkeys eliminate seed phrases, paper backups, and browser extension requirements for newcomers while retaining non-custodial cryptographic security.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-[#137A43]">
+              WebAuthn Biometric Standard
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <Wallet size={20} />
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Universal Web3 Compatibility
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                Prefer your existing Ethereum tooling? ANS natively supports MetaMask and all standard EIP-1193 injected browser providers on Arc Testnet (Chain ID 5042002), allowing seamless access for veteran crypto users.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-[#137A43]">
+              EIP-1193 & Wagmi v2 Compatible
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <Shield size={20} />
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Cryptographically Authorized Profiles
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                Off-chain profile metadata (bio, avatar, website, social handles) is secured with EIP-191 personal signatures and single-use server challenges, ensuring that only the verified private key holder can update their public identity card.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-[#137A43]">
+              Single-use challenge replay protection
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E5E2] rounded-2xl p-7 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F5E9] text-[#137A43] flex items-center justify-center mb-5">
+                <CreditCard size={20} />
+              </div>
+              <h3 className="font-serif font-bold text-xl text-[#141413] mb-3">
+                Native USDC Settlement
+              </h3>
+              <p className="text-xs sm:text-sm text-[#60605A] font-sans leading-relaxed">
+                All protocol fees, name registrations, renewals, tips, and marketplace purchases settle natively in 6-decimal USDC (0x3600...0000), protecting domain pricing from cryptocurrency price volatility.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#F0F0EE] text-xs font-mono text-[#137A43]">
+              Stable predictable pricing
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 10. SECTION 9: GETTING STARTED & ONBOARDING */}
+      <section className="max-w-7xl mx-auto px-6 py-16 sm:py-24">
+        <div className="bg-[#141413] text-white rounded-3xl p-8 sm:p-14 relative overflow-hidden shadow-md">
+          {/* Ambient Glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-radial from-[#137A43]/30 via-transparent to-transparent pointer-events-none" />
+
+          <div className="relative z-10 max-w-2xl mb-12">
+            <span className="text-xs font-mono font-bold tracking-[0.2em] text-[#86EFAC] uppercase block mb-3">
+              09 / GETTING STARTED
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-serif text-white tracking-tight leading-[1.1] mb-4">
+              Claim your sovereign .arc identity today.
+            </h2>
+            <p className="text-sm sm:text-base text-gray-300 font-sans leading-relaxed">
+              Launch the ANS application to search for your name, authenticate with your biometric passkey, and secure your primary identity on Arc Network.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 relative z-10">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <span className="font-mono text-sm font-bold text-[#86EFAC] block mb-2">Step 1</span>
+              <h4 className="font-sans font-semibold text-sm text-white mb-1">Find your name</h4>
+              <p className="text-xs text-gray-400 font-sans">Search availability and view character-tier pricing.</p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <span className="font-mono text-sm font-bold text-[#86EFAC] block mb-2">Step 2</span>
+              <h4 className="font-sans font-semibold text-sm text-white mb-1">Launch the app</h4>
+              <p className="text-xs text-gray-400 font-sans">Open the application to connect your wallet or passkey.</p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <span className="font-mono text-sm font-bold text-[#86EFAC] block mb-2">Step 3</span>
+              <h4 className="font-sans font-semibold text-sm text-white mb-1">Sign & Register</h4>
+              <p className="text-xs text-gray-400 font-sans">Choose 3 to 12 months duration and confirm in USDC.</p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <span className="font-mono text-sm font-bold text-[#86EFAC] block mb-2">Step 4</span>
+              <h4 className="font-sans font-semibold text-sm text-white mb-1">Set as Primary</h4>
+              <p className="text-xs text-gray-400 font-sans">Bind your reverse lookup for universal Arc recognition.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 relative z-10">
+            <button 
+              onClick={onLaunchApp}
+              className="w-full sm:w-auto bg-white text-[#141413] hover:bg-gray-100 px-8 py-3.5 rounded-full font-sans font-semibold text-sm shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>Launch App</span>
+              <ArrowRightIcon size={16} />
+            </button>
+            <button 
+              onClick={scrollToSearch}
+              className="w-full sm:w-auto bg-transparent border border-white/20 text-white hover:bg-white/10 px-8 py-3.5 rounded-full font-sans font-medium text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span>Search Available Names</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 11. STANDALONE LANDING FOOTER */}
+      <footer className="w-full border-t border-[#E5E5E2] bg-[#FBFBFA] py-14 px-6 sm:px-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+          <div>
+            <div 
+              className="cursor-pointer select-none hover:opacity-90 transition-opacity mb-3"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            >
+              <ANSLogo />
+            </div>
+            <p className="text-xs text-[#60605A] font-sans max-w-md leading-relaxed">
+              Arc Name Service (ANS). Sovereign decentralized naming and identity layer for Arc Network.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-[#60605A]">
+            <a 
+              href="https://github.com/Nimona22/ANS" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-[#137A43] transition-colors underline underline-offset-2 flex items-center gap-1.5"
+            >
+              <span>GitHub Repo</span>
+              <ArrowUpRight size={12} />
+            </a>
+            <span className="text-gray-300">•</span>
+            <a 
+              href="https://x.com/Nimox219" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-[#137A43] transition-colors underline underline-offset-2 flex items-center gap-1.5"
+            >
+              <span>X Account</span>
+              <ArrowUpRight size={12} />
+            </a>
+            <span className="text-gray-300">•</span>
+            <button 
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="hover:text-[#141413] transition-colors"
+            >
+              Back to Top ↑
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-[#E5E5E2] flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] font-sans text-gray-400">
+          <p>© 2026 Arc Name Service. Independent protocol deployed on Arc Testnet.</p>
+          <p>Not affiliated with or endorsed by Arc Network or Circle.</p>
+        </div>
+      </footer>
+
+    </div>
+  );
+};
+
 const NamesAppView = ({ 
   navigateToProfile, 
   auth, 
-  ans 
+  ans,
+  initialSearchName = null,
+  navigateTo,
 }: { 
   navigateToProfile: (name: string) => void;
   auth: AuthState;
   ans: ReturnType<typeof useANS>;
+  initialSearchName?: string | null;
+  navigateTo?: (view: string, arg?: string) => void;
 }) => {
   const [recentNames, setRecentNames] = useState<string[]>(() => getRecentlyRegisteredNames());
 
   useEffect(() => {
     let cancelled = false;
     const updateRecent = async () => {
+      try {
+        await syncRecentRegisteredNamesFromLogs();
+      } catch {}
       const candidates = getRecentlyRegisteredNames();
       const verified: string[] = [];
       for (const item of candidates) {
@@ -1361,10 +2663,17 @@ const NamesAppView = ({
             args: [cleanName(item)],
           });
           if (rec && rec.owner !== '0x0000000000000000000000000000000000000000') {
-            verified.push(item.endsWith('.arc') ? item : `${item}.arc`);
+            const formatted = item.endsWith('.arc') ? item : `${item}.arc`;
+            if (!verified.includes(formatted)) {
+              verified.push(formatted);
+            }
           }
         } catch {
-          // ignore individual lookup
+          // If contract RPC read failed temporarily, keep confirmed name
+          const formatted = item.endsWith('.arc') ? item : `${item}.arc`;
+          if (!verified.includes(formatted)) {
+            verified.push(formatted);
+          }
         }
       }
       if (!cancelled && verified.length > 0) {
@@ -1391,7 +2700,7 @@ const NamesAppView = ({
     <div className="max-w-4xl mx-auto pt-14 pb-32 px-6">
       <div className="text-center mb-10">
         <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-3 select-none">
-          ARC NAMESPACE REGISTRY
+          ARC NAME REGISTRY
         </p>
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4 tracking-tight">
           Find your .arc name
@@ -1401,32 +2710,65 @@ const NamesAppView = ({
         </p>
       </div>
 
-      <InteractiveSearch navigateToProfile={navigateToProfile} autoFocus auth={auth} ans={ans} />
+      <InteractiveSearch 
+        navigateToProfile={navigateToProfile} 
+        autoFocus 
+        auth={auth} 
+        ans={ans} 
+        initialQuery={initialSearchName || ''} 
+        navigateTo={navigateTo}
+      />
       
       {recentNames.length > 0 && (
         <div className="mt-16 pt-12 border-t border-[#E5E5E2]">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-serif font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles size={18} className="text-[#137A43]" /> Recently Registered
-            </h3>
-            <span className="text-xs font-mono text-gray-400 font-medium">Verified on Arc Testnet</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+            <div>
+              <h3 className="text-xl font-serif font-bold text-gray-900 flex items-center gap-2">
+                <Clock size={18} className="text-[#137A43]" /> Recently Registered Identities
+              </h3>
+              <p className="text-xs text-gray-500 font-sans mt-0.5">
+                Real identities resolved directly from the ArcNameService smart contract ledger
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F5E9] border border-[#137A43]/20 text-[10px] font-mono font-bold text-[#137A43]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
+                Live Motion Stream
+              </span>
+              <span className="text-xs font-mono text-gray-400 font-medium">On-Chain Verified</span>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {recentNames.map(s => (
-              <div 
-                key={s} 
-                onClick={() => navigateToProfile(s)}
-                className="bg-white border border-[#E5E5E2] hover:border-[#137A43]/40 hover:shadow-md p-4 rounded-2xl flex items-center justify-between group cursor-pointer transition-all"
-              >
-                <div>
-                  <span className="font-mono font-bold text-gray-900 block group-hover:text-[#137A43] transition-colors">{s}</span>
-                  <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider font-semibold">Active Identity</span>
+
+          {/* Snake Motion Stream Container */}
+          <div className="relative w-full overflow-hidden rounded-2xl bg-white border border-[#E5E5E2] py-4 shadow-xs">
+            {/* Left and Right Fade Gradients */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent z-10" />
+
+            {/* Snake Moving Line Track */}
+            <div className="animate-snake-line flex items-center gap-4 px-4 cursor-pointer">
+              {[...recentNames, ...recentNames, ...recentNames, ...recentNames].map((s, idx) => (
+                <div 
+                  key={`${s}-${idx}`} 
+                  onClick={() => navigateToProfile(s)}
+                  title={`View ${s} on-chain profile`}
+                  className="shrink-0 bg-[#FBFBFA] hover:bg-[#F0FDF4] border border-[#E5E5E2] hover:border-[#137A43]/50 px-4 py-3 rounded-xl flex items-center gap-3 transition-all group shadow-2xs hover:shadow-sm"
+                >
+                  <div className="w-2 h-2 rounded-full bg-[#22C55E] shrink-0 animate-ping opacity-75" />
+                  <div>
+                    <span className="font-mono font-bold text-sm text-gray-900 group-hover:text-[#137A43] transition-colors block">
+                      {s}
+                    </span>
+                    <span className="text-[10px] font-mono text-gray-400 group-hover:text-gray-600 uppercase tracking-wider font-semibold block">
+                      Verified On-Chain
+                    </span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-white border border-[#E5E5E2] group-hover:border-[#137A43]/30 flex items-center justify-center transition-colors shrink-0">
+                    <ArrowRightIcon size={11} className="text-gray-400 group-hover:text-[#137A43] group-hover:translate-x-0.5 transition-all" />
+                  </div>
                 </div>
-                <div className="w-7 h-7 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] group-hover:border-[#137A43]/30 flex items-center justify-center transition-colors">
-                  <ArrowRightIcon size={12} className="text-gray-400 group-hover:text-[#137A43] group-hover:translate-x-0.5 transition-all" />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -1517,30 +2859,52 @@ const MarketplaceView = ({
   auth: AuthState; 
   ans: ReturnType<typeof useANS>;
   navigateTo: (view: string, data?: string | null) => void;
-  handleListForSale: (name: string) => void;
+  handleListForSale?: (name: string) => void;
 }) => {
   const [filter, setFilter] = useState('all');
   const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
   const [txState, setTxState] = useState('idle');
-  const [listings, setListings] = useState<MarketplaceListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [listings, setListings] = useState<MarketplaceListing[]>(() => getCachedActiveListings());
+  const [soldListings, setSoldListings] = useState<SoldListing[]>(() => getSoldListings());
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('ans_marketplace_checked')) return false;
+    return getCachedActiveListings().length === 0;
+  });
+  const [updatePriceModal, setUpdatePriceModal] = useState<{
+    isOpen: boolean;
+    name: string;
+    price: string;
+    pending: boolean;
+  }>({
+    isOpen: false,
+    name: '',
+    price: '',
+    pending: false,
+  });
 
   const loadListings = useCallback(async () => {
-    setIsLoading(true);
+    // Only display full loading spinner if cache is completely empty and not yet checked this session
+    if (getCachedActiveListings().length === 0 && (typeof window === 'undefined' || !sessionStorage.getItem('ans_marketplace_checked'))) {
+      setIsLoading(true);
+    }
     try {
+      syncSoldListingsFromLogs().then(s => setSoldListings(s)).catch(() => {});
       const active = await fetchActiveListings(fallbackPublicClient);
       setListings(active);
     } catch (err) {
       console.warn('Failed to load active marketplace listings:', err);
     } finally {
+      if (typeof window !== 'undefined') sessionStorage.setItem('ans_marketplace_checked', 'true');
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadListings();
+    setSoldListings(getSoldListings());
     const handleUpdate = () => {
       loadListings();
+      setSoldListings(getSoldListings());
     };
     window.addEventListener('ans_marketplace_updated', handleUpdate);
     return () => window.removeEventListener('ans_marketplace_updated', handleUpdate);
@@ -1572,17 +2936,39 @@ const MarketplaceView = ({
         name: listingItem.name,
         action: 'Bought Name',
         amount: `${listingItem.price} USDC`,
-        from: 'Marketplace',
+        from: listingItem.seller,
         to: auth.address || '',
         timestamp: Date.now(),
         txHash: hash,
       });
       removeTrackedListing(listingItem.name);
+      recordSoldListing({
+        name: listingItem.name,
+        seller: listingItem.seller,
+        buyer: auth.address || '',
+        price: listingItem.price,
+        timestamp: Date.now(),
+        txHash: hash,
+      });
       setListings(prev => prev.filter(l => cleanName(l.name) !== cleanName(listingItem.name)));
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Acquisition Confirmed: ${listingItem.name}`,
+        body: `Purchased for ${listingItem.price} USDC from ${listingItem.seller.slice(0, 6)}...${listingItem.seller.slice(-4)}.`,
+        tx_hash: hash,
+        link: `profile:${listingItem.name}`,
+      });
       toast.success(`Done! Purchased ${listingItem.name} successfully! Tx: ${hash.slice(0, 10)}...`);
     } catch (err: any) {
       setTxState('idle');
-      toast.error(err?.message || 'Purchase failed');
+      const msg = err?.message || 'Purchase failed';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Purchase Failed: ${listingItem.name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'marketplace',
+      });
+      toast.error(msg);
     }
   };
 
@@ -1592,9 +2978,67 @@ const MarketplaceView = ({
       await ans.cancelListing(name);
       removeTrackedListing(name);
       setListings(prev => prev.filter(l => cleanName(l.name) !== cleanName(name)));
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Listing Cancelled: ${name}`,
+        body: `Successfully removed ${name} from marketplace escrow.`,
+        link: 'marketplace',
+      });
       toast.success(`${name} listing cancelled!`, { id: `cancel-${name}` });
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to cancel listing', { id: `cancel-${name}` });
+      const msg = err?.message || 'Failed to cancel listing';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Cancel Listing Failed: ${name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'marketplace',
+      });
+      toast.error(msg, { id: `cancel-${name}` });
+    }
+  };
+
+  const submitUpdatePrice = async () => {
+    const { name, price } = updatePriceModal;
+    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+      toast.error('Please enter a valid positive price');
+      return;
+    }
+    setUpdatePriceModal(prev => ({ ...prev, pending: true }));
+    try {
+      toast.loading(`Updating price for ${name}...`, { id: `update-${name}` });
+      await ans.listForSale(name, price);
+      setListings(prev =>
+        prev.map(l =>
+          cleanName(l.name) === cleanName(name)
+            ? { ...l, price: Number(price) }
+            : l
+        )
+      );
+      recordActivity({
+        name,
+        action: 'Listed for Sale',
+        amount: `${price} USDC`,
+        from: auth.address || 'Seller',
+        timestamp: Date.now(),
+      });
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Price Updated: ${name}`,
+        body: `Listing price updated to ${price} USDC.`,
+        link: 'marketplace',
+      });
+      toast.success(`Done! Price updated to ${price} USDC!`, { id: `update-${name}` });
+      setUpdatePriceModal({ isOpen: false, name: '', price: '', pending: false });
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to update price';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Update Price Failed: ${name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'marketplace',
+      });
+      toast.error(msg, { id: `update-${name}` });
+      setUpdatePriceModal(prev => ({ ...prev, pending: false }));
     }
   };
 
@@ -1614,25 +3058,91 @@ const MarketplaceView = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6 border-b border-[#E5E5E2] pb-8">
         <div>
           <p className="text-xs font-mono font-bold tracking-[0.2em] text-[#137A43] uppercase mb-2 select-none">
-            SECONDARY NAMESPACE LEDGER
+            ANS MARKETPLACE
           </p>
           <h1 className="text-4xl font-serif font-bold text-gray-900 tracking-tight">Marketplace</h1>
           <p className="text-gray-500 font-sans text-base mt-1">Discover, verify, and acquire registered .arc identities via atomic escrow.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {['all', '3', '4', '5+'].map(f => (
+          {['all', '3', '4', '5+', 'sold'].map(f => (
             <button 
               key={f}
               className={`px-4 py-2 text-xs font-mono font-medium rounded-full transition-all border ${filter === f ? 'bg-[#141413] text-white border-[#141413] shadow-sm' : 'bg-white text-gray-700 border-[#E5E5E2] hover:border-[#137A43] hover:text-[#137A43]'}`}
-              onClick={() => setFilter(f)}
+              onClick={() => {
+                setFilter(f);
+                setSelectedListing(null);
+              }}
             >
-              {f === 'all' ? 'All Records' : `${f} Letters`}
+              {f === 'all' ? 'All Names' : f === 'sold' ? 'Sold Out' : `${f} Letters`}
             </button>
           ))}
         </div>
       </div>
 
-      {isLoading ? (
+      {filter === 'sold' ? (
+        soldListings.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-[#E5E5E2]">
+            <div className="w-14 h-14 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
+              <Store size={24} />
+            </div>
+            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">No Sold Out Identities Yet</h3>
+            <p className="text-gray-500 font-sans text-sm max-w-md mx-auto mb-8 leading-relaxed">
+              When marketplace listings are acquired via atomic escrow, their transaction stories and settlement records appear here transparently.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {soldListings.map(item => (
+              <Card key={`${item.name}-${item.timestamp}`} className="border-[#E5E5E2] bg-white shadow-sm flex flex-col p-6 hover:border-[#137A43]/40 transition-all">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h3 
+                      className="text-2xl font-serif font-bold text-gray-900 cursor-pointer hover:text-[#137A43] transition-colors tracking-tight"
+                      onClick={() => navigateToProfile(item.name)}
+                    >
+                      {item.name}
+                    </h3>
+                    <p className="text-[10px] font-mono text-gray-400 mt-0.5">
+                      {formatRelativeTime(item.timestamp)}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#141413] text-white rounded-full text-[10px] font-mono font-bold uppercase tracking-wider">
+                    <Check size={10} className="text-[#86EFAC]" /> Sold Out
+                  </span>
+                </div>
+
+                <div className="mb-6 p-3.5 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-mono text-gray-400">Sold Price:</span>
+                    <span className="font-mono font-bold text-gray-900">{item.price} USDC</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-mono text-gray-400">Seller:</span>
+                    <span className="font-mono text-gray-700">{item.seller ? `${item.seller.slice(0, 6)}...${item.seller.slice(-4)}` : 'Escrow'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-mono text-gray-400">Buyer:</span>
+                    <span className="font-mono text-gray-700">{item.buyer ? `${item.buyer.slice(0, 6)}...${item.buyer.slice(-4)}` : 'On-Chain'}</span>
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-3 border-t border-[#E5E5E2] flex items-center justify-between">
+                  <span className="text-[11px] font-sans text-gray-500 flex items-center gap-1">
+                    <Shield size={12} className="text-[#137A43]" /> Escrow Settled
+                  </span>
+                  <Button 
+                    variant="secondary" 
+                    className="text-xs font-mono py-1.5 px-3"
+                    onClick={() => navigateToProfile(item.name)}
+                  >
+                    View Identity
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : isLoading ? (
         <div className="text-center py-20 text-gray-400">
           <RefreshCw size={24} className="animate-spin mx-auto mb-3 text-gray-400" />
           <p className="font-mono text-xs text-gray-500">Querying on-chain escrow listings on Arc Testnet...</p>
@@ -1679,21 +3189,28 @@ const MarketplaceView = ({
                 </div>
                 
                 {isOwnListing ? (
-                  <div className="mt-auto pt-4 border-t border-[#E5E5E2] flex flex-col xl:flex-row items-center justify-between gap-3">
-                    <span className="text-[10px] font-mono font-semibold text-[#137A43] bg-[#E8F5E9] px-2.5 py-1 rounded-full border border-[#137A43]/20 whitespace-nowrap self-start xl:self-center">
-                      Your Listing
-                    </span>
-                    <div className="flex items-center gap-2 w-full xl:w-auto">
+                  <div className="mt-auto pt-4 border-t border-[#E5E5E2] flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-semibold text-[#137A43] bg-[#E8F5E9] px-2.5 py-1 rounded-full border border-[#137A43]/20 whitespace-nowrap">
+                        Your Listing
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 w-full">
                       <Button 
                         variant="secondary" 
-                        className="text-xs font-mono py-1.5 px-3 flex-1 xl:flex-none justify-center"
-                        onClick={() => handleListForSale(listing.name)}
+                        className="text-xs font-mono py-2 px-2 w-full justify-center"
+                        onClick={() => setUpdatePriceModal({
+                          isOpen: true,
+                          name: listing.name,
+                          price: listing.price.toString(),
+                          pending: false,
+                        })}
                       >
                         Update Price
                       </Button>
                       <Button 
                         variant="secondary" 
-                        className="text-xs font-mono py-1.5 px-3 text-red-600 hover:bg-red-50 hover:border-red-200 flex-1 xl:flex-none justify-center"
+                        className="text-xs font-mono py-2 px-2 text-red-600 hover:bg-red-50 hover:border-red-200 w-full justify-center"
                         onClick={() => handleCancelListing(listing.name)}
                       >
                         Cancel
@@ -1732,7 +3249,7 @@ const MarketplaceView = ({
                             <X size={15} />
                           </Button>
                           <Button variant="accent" className="flex-1 text-xs font-mono font-semibold py-2.5" onClick={() => handleBuy(listing)} disabled={txState !== 'idle'}>
-                            {txState === 'idle' ? 'Confirm Settlement' : txState === 'approving' ? 'Approving USDC...' : 'Executing Purchase...'}
+                            {txState === 'idle' ? 'Confirm Purchase' : txState === 'approving' ? 'Approving USDC...' : 'Executing Purchase...'}
                           </Button>
                         </div>
                       </>
@@ -1741,13 +3258,67 @@ const MarketplaceView = ({
                 ) : (
                   <div className="mt-auto pt-4 border-t border-[#E5E5E2]">
                     <Button variant="secondary" className="w-full text-xs font-sans font-medium py-2.5" onClick={() => setSelectedListing(listing)}>
-                      Purchase Record
+                      Buy Name
                     </Button>
                   </div>
                 )}
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {updatePriceModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md bg-white shadow-2xl relative rounded-2xl border-[#E5E5E2] p-8">
+            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">
+              Update Price for {updatePriceModal.name}
+            </h3>
+            <p className="text-sm text-gray-500 font-sans mb-6">
+              Enter the new price in USDC. The on-chain listing will be updated immediately.
+            </p>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-mono font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  New Price (USDC)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={updatePriceModal.price}
+                    onChange={(e) => setUpdatePriceModal(prev => ({ ...prev, price: e.target.value }))}
+                    disabled={updatePriceModal.pending}
+                    placeholder="50"
+                    autoFocus
+                    className="w-full p-3.5 pl-4 pr-16 bg-[#FBFBFA] border border-[#E5E5E2] rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#137A43]/20 focus:border-[#137A43] transition-all"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-gray-400 font-medium text-xs">
+                    USDC
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setUpdatePriceModal(prev => ({ ...prev, isOpen: false }))}
+                disabled={updatePriceModal.pending}
+                className="px-5 py-2.5"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="accent"
+                onClick={submitUpdatePrice}
+                disabled={!updatePriceModal.price || updatePriceModal.pending}
+                className="px-5 py-2.5"
+              >
+                {updatePriceModal.pending ? 'Updating...' : 'Update Price'}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
     </div>
@@ -1778,7 +3349,7 @@ const PasskeySignInCard = ({ auth, actionText = "Connect your wallet" }: { auth:
         <div className="flex items-center justify-center gap-2 mb-10 relative z-10">
            <span className="px-3.5 py-1.5 bg-gray-50 border border-gray-200/75 rounded-full text-[11px] font-sans font-bold text-gray-500 tracking-wider uppercase flex items-center gap-1.5 shadow-sm">
              <Shield size={14} strokeWidth={2.5} className="text-[#137A43]" />
-             Uses FaceID / TouchID — No PIN Required
+             Uses FaceID or TouchID with no PIN required
            </span>
         </div>
         
@@ -1855,7 +3426,7 @@ const MyNamesView = ({
 
   const [namesList, setNamesList] = useState<any[]>([]);
   const [transferModal, setTransferModal] = useState<{isOpen: boolean; name: string; to: string; pending: boolean}>({isOpen: false, name: '', to: '', pending: false});
-  const [listingModal, setListingModal] = useState<{isOpen: boolean; name: string; price: string; pending: boolean}>({isOpen: false, name: '', price: '50', pending: false});
+  const [listingModal, setListingModal] = useState<{isOpen: boolean; name: string; price: string; pending: boolean; isUpdate?: boolean}>({isOpen: false, name: '', price: '50', pending: false, isUpdate: false});
 
   useEffect(() => {
     let active = true;
@@ -1965,10 +3536,23 @@ const MyNamesView = ({
         from: auth.address || 'Owner',
         timestamp: Date.now(),
       });
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Renewal Confirmed: ${name}`,
+        body: `Extended registration period for ${name} by 12 months.`,
+        link: `profile:${name}`,
+      });
       toast.success(`Done! ${name} renewed!`, { id: `renew-${name}` });
       refetchOwned();
     } catch (e: any) {
-      toast.error(e?.message || 'Renew failed', { id: `renew-${name}` });
+      const msg = e?.message || 'Renew failed';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Renewal Failed: ${name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'mynames',
+      });
+      toast.error(msg, { id: `renew-${name}` });
     }
   };
 
@@ -1991,28 +3575,41 @@ const MyNamesView = ({
         to,
         timestamp: Date.now(),
       });
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Transfer Confirmed: ${name}`,
+        body: `Successfully transferred ownership to ${to}.`,
+        link: `userprofile:${to}`,
+      });
       toast.success(`${name} transferred to ${to}!`);
       refetchOwned();
       setTransferModal(prev => ({ ...prev, isOpen: false }));
     } catch (e: any) {
-      toast.error(e?.message || 'Transfer failed');
+      const msg = e?.message || 'Transfer failed';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Transfer Failed: ${name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'mynames',
+      });
+      toast.error(msg);
       setTransferModal(prev => ({ ...prev, pending: false }));
     }
   };
 
-  const handleListForSale = (name: string) => {
-    setListingModal({ isOpen: true, name, price: '50', pending: false });
+  const handleListForSale = (name: string, isUpdate: boolean = false, currentPrice: string = '50') => {
+    setListingModal({ isOpen: true, name, price: currentPrice, pending: false, isUpdate });
   };
 
   const submitListing = async () => {
-    const { name, price } = listingModal;
+    const { name, price, isUpdate } = listingModal;
     if (!price || isNaN(Number(price)) || Number(price) <= 0) {
       toast.error('Please enter a valid positive price');
       return;
     }
     setListingModal(prev => ({ ...prev, pending: true }));
     try {
-      toast.info(`Listing ${name} for ${price} USDC...`);
+      toast.info(`${isUpdate ? 'Updating price for' : 'Listing'} ${name} for ${price} USDC...`);
       await ans.listForSale(name, price);
       addTrackedListing(name);
       recordActivity({
@@ -2022,11 +3619,24 @@ const MyNamesView = ({
         from: auth.address || 'Seller',
         timestamp: Date.now(),
       });
-      toast.success(`${name} listed for sale!`);
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `${isUpdate ? 'Price Updated' : 'Listing Published'}: ${name}`,
+        body: `${isUpdate ? 'Updated listing price to' : 'Listed for sale at'} ${price} USDC.`,
+        link: 'marketplace',
+      });
+      toast.success(`${name} ${isUpdate ? 'price updated' : 'listed for sale'}!`);
       refetchOwned();
       setListingModal(prev => ({ ...prev, isOpen: false }));
     } catch (e: any) {
-      toast.error(e?.message || 'Listing failed');
+      const msg = e?.message || (isUpdate ? 'Failed to update price' : 'Listing failed');
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `${isUpdate ? 'Price Update' : 'Listing'} Failed: ${name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'mynames',
+      });
+      toast.error(msg);
       setListingModal(prev => ({ ...prev, pending: false }));
     }
   };
@@ -2036,10 +3646,23 @@ const MyNamesView = ({
       toast.loading(`Cancelling listing for ${name}...`, { id: `cancel-${name}` });
       await ans.cancelListing(name);
       removeTrackedListing(name);
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Listing Cancelled: ${name}`,
+        body: `Removed ${name} from marketplace escrow.`,
+        link: 'marketplace',
+      });
       toast.success(`${name} removed from marketplace!`, { id: `cancel-${name}` });
       refetchOwned();
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to cancel listing', { id: `cancel-${name}` });
+      const msg = e?.message || 'Failed to cancel listing';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Cancel Listing Failed: ${name}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'mynames',
+      });
+      toast.error(msg, { id: `cancel-${name}` });
     }
   };
 
@@ -2085,39 +3708,6 @@ const MyNamesView = ({
           </div>
         </div>
       </div>
-
-      {auth.address && (
-        <div className="mb-8 p-4 sm:p-5 bg-white border border-[#E5E5E2] rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-lg bg-[#F5F5F3] border border-[#E5E5E2] flex items-center justify-center text-gray-700 shrink-0">
-              <Wallet size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-wider font-semibold text-gray-500">Connected Smart Account</p>
-              <p className="font-mono text-xs sm:text-sm font-semibold text-gray-900 break-all">{auth.address}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(auth.address!);
-                toast.success('Address copied to clipboard!');
-              }}
-              className="flex-1 sm:flex-none flex justify-center items-center gap-2 px-3.5 py-2 bg-[#FBFBFA] hover:bg-[#F0F0EE] text-gray-800 border border-[#E5E5E2] rounded-lg font-mono text-xs font-semibold transition-all shadow-sm active:scale-95 shrink-0"
-            >
-              <Copy size={13} className="text-gray-500" />
-              <span>Copy Address</span>
-            </button>
-            <Button
-              variant="primary"
-              onClick={() => navigateTo('send')}
-              className="flex-1 sm:flex-none py-2 px-4 text-xs font-mono font-semibold"
-            >
-              <Send size={13}/> Send Payment
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-4">
         {namesList.map(nameItem => (
@@ -2206,7 +3796,7 @@ const MyNamesView = ({
                   </button>
                   {nameItem.listed ? (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                      <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name, true); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
                         <Tag size={14} className="text-gray-400"/> Update Price
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); handleCancelListing(nameItem.name); }} className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 font-mono transition-colors flex items-center gap-2.5">
@@ -2214,7 +3804,7 @@ const MyNamesView = ({
                       </button>
                     </>
                   ) : (
-                    <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
+                    <button onClick={(e) => { e.stopPropagation(); handleListForSale(nameItem.name, false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-800 hover:bg-[#F5F5F3] font-mono transition-colors flex items-center gap-2.5">
                       <Tag size={14} className="text-gray-400"/> List for Sale
                     </button>
                   )}
@@ -2267,8 +3857,14 @@ const MyNamesView = ({
       {listingModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <Card className="w-full max-w-md bg-white shadow-2xl relative rounded-2xl border-[#E5E5E2] p-8">
-            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">List {listingModal.name} for Sale</h3>
-            <p className="text-sm text-gray-500 font-sans mb-6">Set a price in USDC. A 2.5% protocol fee will be deducted from your proceeds upon sale.</p>
+            <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">
+              {listingModal.isUpdate ? `Update Price for ${listingModal.name}` : `List ${listingModal.name} for Sale`}
+            </h3>
+            <p className="text-sm text-gray-500 font-sans mb-6">
+              {listingModal.isUpdate 
+                ? 'Enter the new price in USDC. Your on-chain listing will be updated immediately.'
+                : 'Set a price in USDC. A 2.5% protocol fee will be deducted from your proceeds upon sale.'}
+            </p>
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-xs font-mono font-bold text-gray-700 uppercase tracking-wider mb-2">Price (USDC)</label>
@@ -2292,7 +3888,7 @@ const MyNamesView = ({
                 Cancel
               </Button>
               <Button variant="accent" onClick={submitListing} disabled={!listingModal.price || listingModal.pending} className="px-5 py-2.5">
-                {listingModal.pending ? 'Listing...' : 'List for Sale'}
+                {listingModal.pending ? (listingModal.isUpdate ? 'Updating...' : 'Listing...') : (listingModal.isUpdate ? 'Update Price' : 'List for Sale')}
               </Button>
             </div>
           </Card>
@@ -2363,9 +3959,9 @@ const SendView = ({
       });
       recordActivity({
         name: recipient,
-        action: 'Received Tip',
+        action: 'Sent Tip',
         amount: `${amount} USDC`,
-        from: auth.address ? (cleanName(auth.address).slice(0, 8) + '...') : 'Anonymous',
+        from: auth.address || 'Anonymous',
         to: recipient,
         timestamp: Date.now(),
         txHash: hash,
@@ -2374,10 +3970,24 @@ const SendView = ({
       setTxHash(hash);
       setTxStatus('idle');
       setStep('success');
+      addClientNotification(auth.address, {
+        kind: 'tx_success',
+        title: `Payment Confirmed: ${amount} USDC`,
+        body: `Successfully transferred ${amount} USDC to ${recipient}.${note ? ` Note: "${note}"` : ''}`,
+        tx_hash: hash,
+        link: recipient.endsWith('.arc') ? `profile:${recipient}` : `userprofile:${recipient}`,
+      });
       toast.success('Done! Payment sent successfully!');
     } catch (err: any) {
       setTxStatus('idle');
-      toast.error(err?.message || 'Payment failed');
+      const msg = err?.message || 'Payment failed';
+      addClientNotification(auth.address, {
+        kind: 'tx_failed',
+        title: `Payment Failed to ${recipient}`,
+        body: `Reason: ${msg.slice(0, 180)}`,
+        link: 'send',
+      });
+      toast.error(msg);
     }
   };
 
@@ -2592,13 +4202,14 @@ const NameProfileView = ({
     chainId: arcTestnet.id,
   });
 
-  const mockListing = INITIAL_MOCK_LISTINGS.find(l => l.name === name);
-  const mockName = INITIAL_MOCK_NAMES.find(n => n.name === name);
+  const mockListing = INITIAL_MOCK_LISTINGS.find(l => l.name === name || cleanName(l.name) === clean);
+  const mockName = INITIAL_MOCK_NAMES.find(n => n.name === name || cleanName(n.name) === clean);
+  const soldListing = clean === 'maler' ? null : getSoldListings().find(s => cleanName(s.name) === clean);
 
   const hasOnchainOwner = record && record.owner !== '0x0000000000000000000000000000000000000000';
-  const isRegistered = hasOnchainOwner || (listing && listing.active) || !!mockName || !!mockListing;
+  const isRegistered = hasOnchainOwner || (listing && listing.active) || !!soldListing || !!mockName || !!mockListing;
 
-  const ownerStr = (listing && listing.active ? listing.seller : hasOnchainOwner ? record.owner : mockListing ? mockListing.seller : mockName?.owner || "0x71C...9A23") as string;
+  const ownerStr = (hasOnchainOwner ? record.owner : listing && listing.active ? listing.seller : soldListing ? soldListing.buyer : mockListing ? mockListing.seller : mockName?.owner || "0x71C...9A23") as string;
   const listingPrice = listing && listing.active ? Number(formatUnits(listing.price, 6)) : mockListing ? mockListing.price : null;
 
   const isOwnerAddress = ownerStr.startsWith('0x') && ownerStr.length === 42;
@@ -2658,7 +4269,14 @@ const NameProfileView = ({
           <div className="z-10 w-full">
             <h1 className="text-5xl md:text-6xl font-serif font-bold text-gray-900 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 tracking-tight">
               {name}
-              <div className="self-start sm:self-auto mt-2 sm:mt-0"><ReputationBadge name={name} /></div>
+              <div className="self-start sm:self-auto mt-2 sm:mt-0 flex items-center gap-2">
+                <ReputationBadge name={name} />
+                {soldListing && !hasOnchainOwner && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#141413] text-white rounded-full text-[10px] font-mono font-bold uppercase tracking-wider">
+                    <Check size={10} className="text-[#86EFAC]" /> Sold Out
+                  </span>
+                )}
+              </div>
             </h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-8 text-gray-500 font-mono text-sm">
               <span className="flex items-center gap-2"><span className="text-gray-400 font-sans text-[10px] font-bold uppercase tracking-wider">Owner</span> {ownerStr}</span>
@@ -2708,18 +4326,24 @@ const NameProfileView = ({
                   switch (tx.action) {
                     case 'Registered Name':
                       return <Shield size={18} className="text-[#137A43]" />;
-                    case 'Received Tip':
-                      return <Zap size={18} className="text-amber-500" />;
-                    case 'Bought Name':
-                      return <Store size={18} className="text-[#137A43]" />;
                     case 'Gifted Name':
                       return <Gift size={18} className="text-[#137A43]" />;
+                    case 'Bought Name':
+                      return <ShoppingCart size={18} className="text-[#137A43]" />;
+                    case 'Sold Name':
+                      return <Tag size={18} className="text-[#137A43]" />;
+                    case 'Received Tip':
+                      return <CreditCard size={18} className="text-[#137A43]" />;
+                    case 'Sent Tip':
+                      return <Send size={18} className="text-[#137A43]" />;
                     case 'Renewed Name':
                       return <RefreshCw size={18} className="text-[#137A43]" />;
                     case 'Listed for Sale':
-                      return <Tag size={18} className="text-gray-600" />;
+                      return <Tag size={18} className="text-[#137A43]" />;
+                    case 'Transferred Name':
+                      return <ArrowRightLeft size={18} className="text-[#137A43]" />;
                     default:
-                      return <ArrowRightLeft size={18} className="text-gray-400" />;
+                      return <CreditCard size={18} className="text-[#137A43]" />;
                   }
                 };
 
@@ -2744,10 +4368,91 @@ const NameProfileView = ({
                             </a>
                           )}
                         </div>
-                        <p className="text-gray-500 font-mono text-xs mt-0.5">
-                          {tx.from}
-                          {tx.note && <span className="text-gray-600 font-sans italic ml-2">"{tx.note}"</span>}
-                        </p>
+                        {tx.action === 'Sold Name' ? (
+                          <div className="text-xs mt-1 flex flex-wrap items-center gap-1.5 font-mono">
+                            <span className="text-gray-500 font-sans font-medium">Sold by:</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (tx.from && tx.from.startsWith('0x')) navigateTo('userprofile', tx.from);
+                              }}
+                              className="text-[#137A43] hover:underline font-semibold bg-[#E8F5E9] hover:bg-[#DEF2E3] px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1"
+                              title={`View seller profile (${tx.from})`}
+                            >
+                              <User size={11} className="shrink-0" />
+                              <span>{tx.from.startsWith('0x') ? `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}` : tx.from}</span>
+                            </button>
+                            {tx.to && (
+                              <>
+                                <span className="text-gray-400 font-sans">to</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (tx.to && tx.to.startsWith('0x')) navigateTo('userprofile', tx.to);
+                                  }}
+                                  className="text-gray-700 hover:text-gray-900 hover:underline bg-[#F5F5F3] hover:bg-[#EDEDEB] px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1"
+                                  title={`View buyer profile (${tx.to})`}
+                                >
+                                  <span>{tx.to.startsWith('0x') ? `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}` : tx.to}</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ) : tx.action === 'Bought Name' ? (
+                          <div className="text-xs mt-1 flex flex-wrap items-center gap-1.5 font-mono">
+                            <span className="text-gray-500 font-sans font-medium">Purchased by:</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (tx.to && tx.to.startsWith('0x')) navigateTo('userprofile', tx.to);
+                              }}
+                              className="text-[#137A43] hover:underline font-semibold bg-[#E8F5E9] hover:bg-[#DEF2E3] px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1"
+                              title={`View buyer profile (${tx.to})`}
+                            >
+                              <User size={11} className="shrink-0" />
+                              <span>{tx.to && tx.to.startsWith('0x') ? `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}` : tx.to || 'Buyer'}</span>
+                            </button>
+                            {tx.from && (
+                              <>
+                                <span className="text-gray-400 font-sans">from</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (tx.from && tx.from.startsWith('0x')) navigateTo('userprofile', tx.from);
+                                  }}
+                                  className="text-gray-700 hover:text-gray-900 hover:underline bg-[#F5F5F3] hover:bg-[#EDEDEB] px-2 py-0.5 rounded-md transition-colors inline-flex items-center gap-1"
+                                  title={`View seller profile (${tx.from})`}
+                                >
+                                  <span>{tx.from.startsWith('0x') ? `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}` : tx.from}</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ) : tx.action === 'Registered Name' ? (
+                          <p className="text-gray-500 font-mono text-xs mt-0.5">
+                            <span className="text-gray-400 font-sans">Minted via </span>
+                            <span className="font-semibold text-gray-700">{tx.from}</span>
+                            {tx.to && tx.to !== 'Arc Protocol' && (
+                              <>
+                                <span className="text-gray-400 font-sans"> to </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (tx.to && tx.to.startsWith('0x')) navigateTo('userprofile', tx.to);
+                                  }}
+                                  className="text-[#137A43] hover:underline font-medium"
+                                >
+                                  {tx.to.startsWith('0x') ? `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}` : tx.to}
+                                </button>
+                              </>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-gray-500 font-mono text-xs mt-0.5">
+                            {tx.from}
+                            {tx.note && <span className="text-gray-600 font-sans italic ml-2">"{tx.note}"</span>}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="sm:text-right">
@@ -2978,6 +4683,30 @@ const UserProfileView = ({
     const hue2 = (hue1 + 40) % 360;
     return `linear-gradient(135deg, hsl(${hue1}, 80%, 15%), hsl(${hue2}, 80%, 5%))`;
   }, [targetAddress]);
+
+  const [userActivities, setUserActivities] = useState<NameActivityItem[]>(() => {
+    return targetAddress ? getUserActivities(targetAddress, ownedNames) : [];
+  });
+
+  useEffect(() => {
+    if (!targetAddress) return;
+    const loadActivities = () => {
+      const acts = getUserActivities(targetAddress, ownedNames);
+      setUserActivities(acts);
+    };
+
+    loadActivities();
+
+    window.addEventListener('ans_activity_updated', loadActivities);
+    window.addEventListener('ans_marketplace_updated', loadActivities);
+    window.addEventListener('ans_primary_changed', loadActivities);
+
+    return () => {
+      window.removeEventListener('ans_activity_updated', loadActivities);
+      window.removeEventListener('ans_marketplace_updated', loadActivities);
+      window.removeEventListener('ans_primary_changed', loadActivities);
+    };
+  }, [targetAddress, ownedNames]);
 
   return (
     <div className="w-full min-h-screen bg-[#FAFAFA] text-gray-900 -mt-16 pt-16 font-sans">
@@ -3217,41 +4946,71 @@ const UserProfileView = ({
 
         {activeTab === 'activity' && (
           <div className="bg-white border border-[#E5E5E2] rounded-2xl p-6 md:p-8 shadow-sm">
-            {(() => {
-              const userActs = getUserActivities(targetAddress);
-              if (userActs.length === 0) {
-                return (
-                  <div className="text-center py-12">
-                    <History size={32} className="mx-auto text-gray-400 mb-3" />
-                    <p className="text-gray-500 text-sm">No activity recorded locally for this user yet.</p>
-                  </div>
-                );
-              }
-              return (
-                <div className="space-y-4">
-                  {userActs.map((tx: any) => (
-                    <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 border-b border-[#E5E5E2] last:border-0 gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-[#FBFBFA] border border-[#E5E5E2] flex items-center justify-center text-gray-500 shrink-0">
-                          {tx.action.includes('Transferred') || tx.action.includes('Gifted') ? <Gift size={16} className="text-[#137A43]" /> : <History size={16} />}
-                        </div>
-                        <div>
-                          <p className="text-gray-900 font-sans font-bold text-sm">{tx.action}</p>
-                          <p className="text-gray-500 font-mono text-xs mt-0.5">
-                            {tx.name}
-                            {tx.note && <span className="text-gray-500 font-sans italic ml-2">"{tx.note}"</span>}
-                          </p>
-                        </div>
+            {userActivities.length === 0 ? (
+              <div className="text-center py-12">
+                <History size={32} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-500 text-sm font-medium">No activity recorded for this user yet.</p>
+                <p className="text-xs text-gray-400 font-sans mt-1">Register a name, send a tip, or list an identity to build on-chain transaction history.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {userActivities.map((tx: any) => (
+                  <div key={tx.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 border-b border-[#E5E5E2] last:border-0 gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-[#E8F5E9]/60 border border-[#137A43]/20 flex items-center justify-center shrink-0">
+                        {tx.action === 'Registered Name' ? (
+                          <Shield size={18} className="text-[#137A43]" />
+                        ) : tx.action === 'Gifted Name' || tx.action?.includes?.('Gift') ? (
+                          <Gift size={18} className="text-[#137A43]" />
+                        ) : tx.action === 'Bought Name' ? (
+                          <ShoppingCart size={18} className="text-[#137A43]" />
+                        ) : tx.action === 'Sold Name' ? (
+                          <Tag size={18} className="text-[#137A43]" />
+                        ) : tx.action === 'Sent Tip' ? (
+                          <Send size={18} className="text-[#137A43]" />
+                        ) : tx.action === 'Received Tip' || tx.action?.includes?.('Tip') ? (
+                          <CreditCard size={18} className="text-[#137A43]" />
+                        ) : tx.action === 'Renewed Name' ? (
+                          <RefreshCw size={18} className="text-[#137A43]" />
+                        ) : tx.action?.includes?.('Listed') ? (
+                          <Tag size={18} className="text-[#137A43]" />
+                        ) : tx.action?.includes?.('Transferred') ? (
+                          <ArrowRightLeft size={18} className="text-[#137A43]" />
+                        ) : (
+                          <CreditCard size={18} className="text-[#137A43]" />
+                        )}
                       </div>
-                      <div className="sm:text-right">
-                        <p className="text-gray-900 font-mono font-bold text-sm">{tx.amount}</p>
-                        <p className="text-gray-500 font-sans text-[10px] mt-0.5">{formatRelativeTime(tx.timestamp)}</p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-gray-900 font-sans font-bold text-sm">{tx.action}</p>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#137A43] font-semibold">
+                            On-Chain
+                          </span>
+                        </div>
+                        <p className="text-gray-500 font-mono text-xs mt-0.5 flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-gray-700">{tx.name}</span>
+                          {tx.action === 'Sold Name' && tx.to && (
+                            <span className="text-gray-500 font-sans text-[11px]">
+                              Sold to {tx.to.startsWith('0x') ? `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}` : tx.to}
+                            </span>
+                          )}
+                          {tx.action === 'Bought Name' && tx.from && (
+                            <span className="text-gray-500 font-sans text-[11px]">
+                              Bought from {tx.from.startsWith('0x') ? `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}` : tx.from}
+                            </span>
+                          )}
+                          {tx.note && <span className="text-gray-500 font-sans italic">"{tx.note}"</span>}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              );
-            })()}
+                    <div className="sm:text-right">
+                      <p className="text-gray-900 font-mono font-bold text-sm">{tx.amount}</p>
+                      <p className="text-gray-500 font-sans text-[10px] mt-0.5">{formatRelativeTime(tx.timestamp)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -3422,6 +5181,7 @@ export default function App() {
   }, [auth.address, onchainPrimary]);
 
   const [sendRecipientTarget, setSendRecipientTarget] = useState<string>('');
+  const [namesSearchTarget, setNamesSearchTarget] = useState<string | null>(null);
 
   const navigateTo = (view: string, data: string | null = null) => {
     if (view === 'profile') {
@@ -3436,9 +5196,14 @@ export default function App() {
       const target = data === 'self' || !data ? auth.address : data;
       setUserProfileTarget(target);
       setCurrentView('userprofile');
+    } else if (view === 'names') {
+      setNamesSearchTarget(data);
+      setCurrentView('names');
     } else if (view === 'send') {
       setSendRecipientTarget(data || '');
       setCurrentView('send');
+    } else if (view === 'listForSale') {
+      setCurrentView('marketplace');
     } else {
       setCurrentView(view);
     }
@@ -3449,6 +5214,12 @@ export default function App() {
     window.history.pushState({}, '', '/app');
     setRoute('app');
     window.scrollTo(0, 0);
+  };
+
+  const handleGoToHero = () => {
+    window.history.pushState({}, '', '/');
+    setRoute('landing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLandingNavigate = (view: string, data: string | null = null) => {
@@ -3466,9 +5237,9 @@ export default function App() {
   const navItems = [
     { id: 'home', label: 'Home', icon: HomeIcon },
     { id: 'names', label: 'Names', icon: Search },
-    { id: 'send', label: 'Send', icon: Send },
     { id: 'marketplace', label: 'Marketplace', icon: Store },
     { id: 'mynames', label: 'My Names', icon: User },
+    { id: 'send', label: 'Send', icon: Send },
   ];
 
   if (route === 'landing') {
@@ -3481,6 +5252,7 @@ export default function App() {
           <div 
             className="cursor-pointer select-none hover:opacity-90 transition-opacity"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            title="Arc Name Service"
           >
             <ANSLogo />
           </div>
@@ -3498,9 +5270,10 @@ export default function App() {
 
         {/* STANDALONE HERO / LANDING CONTENT */}
         <main className="flex-1 w-full relative">
-          <HomeView 
+          <LandingPageView 
             navigateTo={handleLandingNavigate} 
             navigateToProfile={handleLandingNavigateProfile} 
+            onLaunchApp={handleLaunchApp}
             auth={auth} 
             ans={ans} 
           />
@@ -3518,7 +5291,8 @@ export default function App() {
         <div className="flex items-center gap-8 md:gap-12">
           <div 
             className="cursor-pointer select-none hover:opacity-90 transition-opacity"
-            onClick={() => navigateTo('home')}
+            onClick={handleGoToHero}
+            title="Return to ANS Overview"
           >
             <ANSLogo />
           </div>
@@ -3552,7 +5326,7 @@ export default function App() {
             <span>Arc Network</span>
             <ChevronDown size={13} className="text-[#60605A]" />
           </div>
-          
+
           {auth.isConnected && auth.address ? (
             <div className="flex items-center gap-2">
               <div 
@@ -3602,6 +5376,21 @@ export default function App() {
                 <span>Profile</span>
               </button>
 
+              <NotificationBell
+                walletAddress={auth.address}
+                navigateTo={navigateTo}
+                signChallenge={
+                  auth.credential
+                    ? (msg: string) =>
+                        import('./lib/circle').then(({ getSmartAccount }) =>
+                          getSmartAccount(auth.credential!).then((acc) =>
+                            acc.signMessage({ message: msg })
+                          )
+                        )
+                    : null
+                }
+              />
+
               <button
                 onClick={() => auth.signOut()}
                 title="Sign out"
@@ -3611,21 +5400,30 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <button 
-              onClick={() => auth.signIn()}
-              className="bg-[#141413] hover:bg-[#282826] text-white px-5 py-2 rounded-full text-xs font-sans font-medium shadow-sm transition-all active:scale-95"
-              disabled={auth.isLoading}
-            >
-              {auth.isLoading ? 'Connecting...' : 'Connect Wallet'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => auth.signUp()}
+                className="border border-[#E5E5E2] hover:bg-gray-100 text-[#141413] px-4 py-2 rounded-full text-xs font-sans font-medium transition-all active:scale-95 hidden sm:inline-flex"
+                disabled={auth.isLoading}
+              >
+                Create Wallet
+              </button>
+              <button 
+                onClick={() => auth.signIn()}
+                className="bg-[#141413] hover:bg-[#282826] text-white px-5 py-2 rounded-full text-xs font-sans font-medium shadow-sm transition-all active:scale-95"
+                disabled={auth.isLoading}
+              >
+                {auth.isLoading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </div>
           )}
         </div>
       </header>
 
       <main className="flex-1 w-full relative">
         {currentView === 'home' && <HomeView navigateTo={navigateTo} navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
-        {currentView === 'names' && <NamesAppView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} />}
-        {currentView === 'marketplace' && <MarketplaceView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} navigateTo={navigateTo} handleListForSale={(name) => navigateTo('listForSale', name)} />}
+        {currentView === 'names' && <NamesAppView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} initialSearchName={namesSearchTarget} navigateTo={navigateTo} />}
+        {currentView === 'marketplace' && <MarketplaceView navigateToProfile={(name) => navigateTo('profile', name)} auth={auth} ans={ans} navigateTo={navigateTo} />}
         {currentView === 'mynames' && <MyNamesView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} navigateTo={navigateTo} />}
         {currentView === 'send' && <SendView isConnected={auth.isConnected} connectWallet={() => auth.signIn()} auth={auth} ans={ans} balance={formattedBalance} defaultRecipient={sendRecipientTarget} />}
         {currentView === 'profile' && profileTarget && <NameProfileView name={profileTarget} navigateTo={navigateTo} />}
@@ -3638,7 +5436,7 @@ export default function App() {
           <div className="flex flex-col sm:flex-row items-center gap-4 text-xs text-gray-500 font-sans">
             <div 
               className="flex items-center gap-2 cursor-pointer select-none" 
-              onClick={() => navigateTo('home')}
+              onClick={handleGoToHero}
             >
               <span className="text-[#137A43] font-mono font-bold text-lg leading-none">&lt;&gt;</span>
               <span className="text-gray-900 font-sans font-bold text-lg leading-none">ANS</span>
@@ -3649,10 +5447,10 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-6 text-xs text-gray-500 font-sans">
-            <button onClick={() => navigateTo('home')} className="hover:text-gray-900 transition-colors">About</button>
+            <button onClick={handleGoToHero} className="hover:text-gray-900 transition-colors">About Us</button>
             <a href="https://docs.arc.io/" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors">Docs</a>
             <a href="https://github.com/Nimona22/ANS" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors">Support</a>
-            <a href="https://x.com" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors text-gray-700" title="X (Twitter)">
+            <a href="https://x.com/Nimox219" target="_blank" rel="noreferrer" className="hover:text-gray-900 transition-colors text-gray-700" title="X (Twitter)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
               </svg>

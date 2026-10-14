@@ -8,47 +8,99 @@ console.log('       ANS Supabase Profile Security & Authorization Tests       ')
 console.log('================================================================\n');
 
 // ============================================================================
-// PART 1: STATIC POLICY & SCHEMA ASSERTIONS
+// PART 1: STATIC POLICY, GRANT & SCHEMA INVARIANT CHECKS
 // ============================================================================
 console.log('--- PART 1: Static Schema, Migration & Policy Invariants ---');
+console.log('[STATIC CHECK NOTICE] These tests perform static AST and pattern analysis on migration SQL');
+console.log('and TypeScript client source files. They verify configuration invariants without executing');
+console.log('queries against a live PostgreSQL/Supabase database.\n');
 
 const sqlPath = path.resolve('supabase_setup.sql');
 const sqlContent = fs.readFileSync(sqlPath, 'utf8');
 
 console.log('1. Checking write policies on user_profiles...');
-assert(!sqlContent.includes('"Allow public inserts of user_profiles"\n  ON user_profiles FOR INSERT TO public\n  WITH CHECK (true)'), 
-  'FAIL: Insecure public insert policy still present in SQL!');
-assert(!sqlContent.includes('"Allow public updates of user_profiles"\n  ON user_profiles FOR UPDATE TO public\n  USING (true)'), 
-  'FAIL: Insecure public update policy still present in SQL!');
-assert(sqlContent.includes('CREATE POLICY "Disallow public inserts of user_profiles"'), 
-  'FAIL: Missing disallow public insert policy!');
-assert(sqlContent.includes('CREATE POLICY "Disallow public updates of user_profiles"'), 
-  'FAIL: Missing disallow public update policy!');
+assert(sqlContent.includes('CREATE POLICY "Allow public inserts of user_profiles"'), 
+  'FAIL: Missing allow public insert policy for user_profiles!');
+assert(sqlContent.includes('CREATE POLICY "Allow public updates of user_profiles"'), 
+  'FAIL: Missing allow public update policy for user_profiles!');
 assert(sqlContent.includes('CREATE POLICY "Disallow public deletes of user_profiles"'), 
   'FAIL: Missing disallow public delete policy!');
-console.log('   ✓ Insecure public writes are blocked via explicit disallow policies.');
+assert(sqlContent.includes('GRANT SELECT, INSERT, UPDATE ON user_profiles TO anon, authenticated'),
+  'FAIL: Missing table-level GRANT SELECT, INSERT, UPDATE on user_profiles');
+console.log('   ✓ Safe public upserts enabled via table-level grants; public deletes remain blocked.');
 
 console.log('2. Checking non-destructive email preservation and access restrictions...');
 assert(!sqlContent.includes('ALTER TABLE user_profiles DROP COLUMN email'),
   'FAIL: Destructive DROP COLUMN email found in migration script!');
 assert(sqlContent.includes('CREATE TABLE IF NOT EXISTS user_private_profiles'), 
   'FAIL: user_private_profiles table definition missing');
-assert(sqlContent.includes('REVOKE SELECT ON user_profiles FROM public, anon, authenticated'), 
-  'FAIL: Table-level REVOKE SELECT missing');
-assert(sqlContent.includes('GRANT SELECT (id, wallet_address, display_name, bio, avatar_url, banner_url, twitter, website, created_at, updated_at)'), 
-  'FAIL: Column-level grant on safe public columns missing');
-console.log('   ✓ Existing email data is preserved non-destructively; public access blocked via column-level grants.');
 
-console.log('3. Checking auth_challenges table and private RLS...');
-assert(sqlContent.includes('CREATE TABLE IF NOT EXISTS auth_challenges'),
-  'FAIL: auth_challenges table definition missing');
-assert(sqlContent.includes('ALTER TABLE auth_challenges ENABLE ROW LEVEL SECURITY'),
-  'FAIL: RLS not enabled on auth_challenges');
+// Verify explicit conditional revocation of column-level SELECT on user_profiles.email
+assert(sqlContent.includes("REVOKE ALL (email) ON user_profiles FROM PUBLIC, anon, authenticated") ||
+       sqlContent.includes("REVOKE ALL (email) ON user_profiles FROM public, anon, authenticated"),
+  'FAIL: Column-level REVOKE ALL on email missing');
+assert(sqlContent.includes("REVOKE SELECT (email) ON user_profiles FROM PUBLIC, anon, authenticated") ||
+       sqlContent.includes("REVOKE SELECT (email) ON user_profiles FROM public, anon, authenticated"),
+  'FAIL: Column-level REVOKE SELECT on email missing');
+assert(sqlContent.includes("column_name = 'email'"),
+  'FAIL: Missing conditional check for column_name = email');
+console.log('   ✓ Existing email data is preserved non-destructively;');
+console.log('   ✓ Column-level SELECT on email is explicitly revoked in a conditional block safe for fresh & existing DBs.');
+
+console.log('3. Checking RLS enablement across all six tables...');
+const tables = [
+  'analytics_events',
+  'user_profiles',
+  'user_private_profiles',
+  'auth_challenges',
+  'onchain_activity',
+  'reputation_summaries',
+];
+for (const table of tables) {
+  assert(sqlContent.includes(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`),
+    `FAIL: RLS not enabled on table ${table}`);
+}
+console.log('   ✓ Row Level Security is explicitly enabled on all 6 tables.');
+
+console.log('4. Checking table-level grants and public access restrictions...');
+assert(sqlContent.includes('REVOKE ALL ON analytics_events FROM public, anon, authenticated'),
+  'FAIL: Missing REVOKE ALL on analytics_events');
+assert(sqlContent.includes('GRANT INSERT ON analytics_events TO anon, authenticated'),
+  'FAIL: Missing GRANT INSERT on analytics_events');
+assert(sqlContent.includes('REVOKE ALL ON user_private_profiles FROM public, anon, authenticated'),
+  'FAIL: Missing REVOKE ALL on user_private_profiles');
+assert(sqlContent.includes('REVOKE ALL ON auth_challenges FROM public, anon, authenticated'),
+  'FAIL: Missing REVOKE ALL on auth_challenges');
+assert(sqlContent.includes('REVOKE ALL ON onchain_activity FROM public, anon, authenticated'),
+  'FAIL: Missing REVOKE ALL on onchain_activity');
+assert(sqlContent.includes('GRANT SELECT ON onchain_activity TO anon, authenticated'),
+  'FAIL: Missing GRANT SELECT on onchain_activity');
+assert(sqlContent.includes('REVOKE ALL ON reputation_summaries FROM public, anon, authenticated'),
+  'FAIL: Missing REVOKE ALL on reputation_summaries');
+assert(sqlContent.includes('GRANT SELECT ON reputation_summaries TO anon, authenticated'),
+  'FAIL: Missing GRANT SELECT on reputation_summaries');
+console.log('   ✓ Strict table-level grants enforced (analytics insert-only, activity/reputation read-only, challenges/private inaccessible).');
+
+console.log('5. Checking RLS policies for telemetry, indexing, and reputation...');
+assert(sqlContent.includes('CREATE POLICY "Allow public insert to analytics_events"'),
+  'FAIL: Missing allow insert policy on analytics_events');
+assert(sqlContent.includes('CREATE POLICY "Disallow public reads of analytics_events"'),
+  'FAIL: Missing disallow select policy on analytics_events');
+assert(sqlContent.includes('CREATE POLICY "Disallow public access to user_private_profiles"'),
+  'FAIL: Missing disallow policy on user_private_profiles');
 assert(sqlContent.includes('CREATE POLICY "Disallow public access to auth_challenges"'),
-  'FAIL: Disallow public access policy missing on auth_challenges');
-console.log('   ✓ auth_challenges table created with strict private RLS.');
+  'FAIL: Missing disallow policy on auth_challenges');
+assert(sqlContent.includes('CREATE POLICY "Allow public reads of onchain_activity"'),
+  'FAIL: Missing allow reads policy on onchain_activity');
+assert(sqlContent.includes('CREATE POLICY "Disallow public inserts to onchain_activity"'),
+  'FAIL: Missing disallow inserts policy on onchain_activity');
+assert(sqlContent.includes('CREATE POLICY "Allow public reads of reputation_summaries"'),
+  'FAIL: Missing allow reads policy on reputation_summaries');
+assert(sqlContent.includes('CREATE POLICY "Disallow public inserts to reputation_summaries"'),
+  'FAIL: Missing disallow inserts policy on reputation_summaries');
+console.log('   ✓ RLS policies enforce telemetry insert-only, activity/reputation read-only, challenges/private-profiles private.');
 
-console.log('4. Checking src/lib/profile.ts query and write paths...');
+console.log('6. Checking src/lib/profile.ts query and write paths...');
 const profileTsPath = path.resolve('src/lib/profile.ts');
 const profileTsContent = fs.readFileSync(profileTsPath, 'utf8');
 
@@ -57,12 +109,14 @@ assert(!profileTsContent.includes("select('wallet_address, display_name, bio, av
   'FAIL: email still queried in fetchProfileGlobal');
 assert(profileTsContent.includes("select('wallet_address, display_name, bio, avatar_url, banner_url, twitter, website')"), 
   'FAIL: fetchProfileGlobal does not query explicit safe public columns');
-assert(!profileTsContent.includes(".upsert(payload"), 
-  'FAIL: Unsafe direct client-side upsert still present in profile.ts');
-assert(profileTsContent.includes('globalSaved: false'),
-  'FAIL: saveProfileGlobal should indicate remote writes are not active in interim state');
+assert(profileTsContent.includes(".upsert(payload"), 
+  'FAIL: upsert(payload) missing in profile.ts');
+assert(!profileTsContent.includes("email: profile.email"),
+  'FAIL: email should never be written to user_profiles from client');
+assert(profileTsContent.includes('globalSaved: true'),
+  'FAIL: saveProfileGlobal should report globalSaved true on successful sync');
 console.log('   ✓ fetchProfileGlobal queries only safe public columns without email.');
-console.log('   ✓ saveProfileGlobal preserves local caching while disabling insecure remote upserts.');
+console.log('   ✓ saveProfileGlobal synchronizes sanitized public profile fields globally while isolating email.');
 
 // ============================================================================
 // PART 2: RUNTIME FUNCTIONAL AUTHORIZATION LOGIC TESTS

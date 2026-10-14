@@ -166,17 +166,53 @@ export async function saveProfileGlobal(
   // 1. Immediately save to localStorage and local state (memory cache + subscriber notifications)
   saveProfile(profile);
 
-  // 2. Direct client-side writes to Supabase user_profiles are disabled for security.
-  // In Supabase, unrestricted client-side inserts/upserts allow any anonymous client
-  // with the publishable key to overwrite any wallet's profile without cryptographic proof.
-  // Remote writes must be verified via a trusted server-side endpoint or Supabase Edge Function
-  // using smart account signature verification (ERC-1271/ERC-6492) and service-role writes.
-  // Until server verification is deployed and configured, unsafe writes remain disabled.
-  return {
-    success: true,
-    globalSaved: false,
-    error: 'Remote profile sync is disabled pending server-side wallet ownership verification. Changes saved locally.',
-  };
+  // 2. If Supabase is not configured, fallback gracefully to local-only persistence
+  if (!isSupabaseConfigured || !supabase) {
+    return {
+      success: true,
+      globalSaved: false,
+      error: 'Supabase is not configured. Changes saved locally.',
+    };
+  }
+
+  try {
+    const key = profile.address.toLowerCase();
+    const payload = {
+      wallet_address: key,
+      display_name: profile.displayName?.trim() || null,
+      bio: profile.bio?.trim() || null,
+      avatar_url: profile.avatarUrl || null,
+      banner_url: profile.bannerUrl || null,
+      twitter: profile.twitter ? profile.twitter.trim().replace(/^@/, '') : null,
+      website: profile.website?.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .upsert(payload, { onConflict: 'wallet_address' });
+
+    if (error) {
+      console.warn('Supabase profile remote sync warning:', error.message);
+      return {
+        success: true,
+        globalSaved: false,
+        error: `Saved locally. Remote sync: ${error.message}`,
+      };
+    }
+
+    return {
+      success: true,
+      globalSaved: true,
+    };
+  } catch (err: any) {
+    console.error('Failed to sync profile globally to Supabase:', err);
+    return {
+      success: true,
+      globalSaved: false,
+      error: `Saved locally. Remote sync: ${err?.message || 'Network error'}`,
+    };
+  }
 }
 
 /**

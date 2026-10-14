@@ -5,6 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build": "vite build",
+    "watcher": "node scripts/ans-event-watcher.mjs",
+    "watcher:once": "node scripts/ans-event-watcher.mjs --once",
+    "test:watcher": "node scripts/test_watcher_logic.mjs",
+    "test:security": "node scripts/test_notification_security.mjs && node scripts/test_profile_security.mjs",
+    "test:all": "node scripts/test_watcher_logic.mjs && node scripts/test_notification_security.mjs && node scripts/test_profile_security.mjs",
     "deploy:self": "bun run ./scripts/self-deploy.ts",
     "compass:deploy": "bun run ./scripts/compass-deploy.ts",
     "fetch:abi": "bun run ./scripts/fetch-abi.ts",
