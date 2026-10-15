@@ -140,7 +140,7 @@ function validateProfilePayload(profile: any): { valid: boolean; error?: string;
   };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

@@ -82,7 +82,7 @@ function jsonResponse(body: unknown, status = 200): Response {
  * Returns true on success, false on any validation failure.
  */
 async function consumeChallenge(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: any,
   challenge: string,
   walletAddress: string
 ): Promise<boolean> {
@@ -101,7 +101,7 @@ async function consumeChallenge(
   return !error && data !== null;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
